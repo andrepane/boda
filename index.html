@@ -43,6 +43,16 @@
               Ideas
             </button>
             <button
+              id="lugares-tab"
+              class="tabs__tab"
+              type="button"
+              data-target="lugares"
+              aria-controls="lugares"
+              aria-selected="false"
+            >
+              Lugares
+            </button>
+            <button
               id="invitados-tab"
               class="tabs__tab"
               type="button"
@@ -235,6 +245,238 @@
               </div>
 
               <div id="ideas-grid" class="ideas-grid" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section id="lugares" class="tab-content" role="tabpanel" aria-labelledby="lugares-tab">
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Lugares</h2>
+                <p class="panel__subtitle">
+                  Compara espacios, agenda visitas y elige el sitio ideal para la boda.
+                </p>
+              </header>
+
+              <form id="venue-form" class="form-grid venues-form" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="venue-name">Nombre</label>
+                  <input
+                    id="venue-name"
+                    class="form-control"
+                    type="text"
+                    placeholder="Nombre del lugar"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-address">Dirección</label>
+                  <input
+                    id="venue-address"
+                    class="form-control"
+                    type="text"
+                    placeholder="Calle, ciudad"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-maps">Enlace a Google Maps</label>
+                  <input
+                    id="venue-maps"
+                    class="form-control"
+                    type="url"
+                    placeholder="https://maps.google.com/..."
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-capacity">Capacidad</label>
+                  <input
+                    id="venue-capacity"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="Personas"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-price">Precio estimado</label>
+                  <input
+                    id="venue-price"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="€"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-date">Fecha disponible</label>
+                  <input id="venue-date" class="form-control" type="date" />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-contact">Contacto</label>
+                  <input
+                    id="venue-contact"
+                    class="form-control"
+                    type="text"
+                    placeholder="Persona, teléfono o email"
+                  />
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="venue-notes">Notas</label>
+                  <textarea
+                    id="venue-notes"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Pros, contras u observaciones"
+                  ></textarea>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="venue-status">Estado</label>
+                  <select id="venue-status" class="form-control">
+                    <option value="pendiente">Pendiente</option>
+                    <option value="visitado">Visitado</option>
+                    <option value="favorito">Favorito</option>
+                    <option value="descartado">Descartado</option>
+                  </select>
+                </div>
+
+                <button class="button form-submit" type="submit">Agregar lugar</button>
+              </form>
+
+              <div class="venues-summary" aria-live="polite">
+                <div class="summary__item">
+                  <span class="summary__label">Lugares</span>
+                  <strong id="venue-total" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Favoritos</span>
+                  <strong id="venue-favorites" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Pendientes</span>
+                  <strong id="venue-pending" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Precio medio</span>
+                  <strong id="venue-price-avg" class="summary__value">—</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Precio mediano</span>
+                  <strong id="venue-price-median" class="summary__value">—</strong>
+                </div>
+              </div>
+
+              <div class="venues-toolbar">
+                <div class="venues-filter">
+                  <label class="form-label" for="venue-status-filter">Estado</label>
+                  <select id="venue-status-filter" class="form-control">
+                    <option value="todas">Todos</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="visitado">Visitado</option>
+                    <option value="favorito">Favorito</option>
+                    <option value="descartado">Descartado</option>
+                  </select>
+                </div>
+
+                <div class="venues-filter venues-filter--range">
+                  <label class="form-label" for="venue-capacity-min">Capacidad (min–max)</label>
+                  <div class="venues-filter__range-inputs">
+                    <input
+                      id="venue-capacity-min"
+                      class="form-control"
+                      type="number"
+                      min="0"
+                      step="1"
+                      inputmode="numeric"
+                      placeholder="Mín"
+                    />
+                    <input
+                      id="venue-capacity-max"
+                      class="form-control"
+                      type="number"
+                      min="0"
+                      step="1"
+                      inputmode="numeric"
+                      placeholder="Máx"
+                    />
+                  </div>
+                </div>
+
+                <div class="venues-filter">
+                  <label class="form-label" for="venue-sort">Ordenar</label>
+                  <select id="venue-sort" class="form-control">
+                    <option value="recent">Más recientes</option>
+                    <option value="price-asc">Precio ascendente</option>
+                    <option value="price-desc">Precio descendente</option>
+                    <option value="capacity-asc">Capacidad ascendente</option>
+                    <option value="capacity-desc">Capacidad descendente</option>
+                  </select>
+                </div>
+
+                <div class="venues-filter venues-filter--search">
+                  <label class="form-label" for="venue-search">Buscar</label>
+                  <input
+                    id="venue-search"
+                    class="form-control"
+                    type="search"
+                    placeholder="Nombre o dirección"
+                  />
+                </div>
+
+                <div class="venues-view" role="group" aria-label="Cambiar vista de lugares">
+                  <button
+                    id="venue-view-cards"
+                    class="button button--ghost venues-view__button is-active"
+                    type="button"
+                    data-view="cards"
+                  >
+                    Tarjetas
+                  </button>
+                  <button
+                    id="venue-view-table"
+                    class="button button--ghost venues-view__button"
+                    type="button"
+                    data-view="table"
+                  >
+                    Tabla
+                  </button>
+                </div>
+
+                <button id="venue-export" class="button button--ghost venues-export" type="button">
+                  Exportar CSV
+                </button>
+              </div>
+
+              <div class="venues-content">
+                <div id="venues-grid" class="venues-grid" aria-live="polite"></div>
+
+                <div id="venues-table" class="venues-table" hidden>
+                  <table class="venues-table__inner">
+                    <thead>
+                      <tr>
+                        <th scope="col">Nombre</th>
+                        <th scope="col">Capacidad</th>
+                        <th scope="col">Precio</th>
+                        <th scope="col">Estado</th>
+                        <th scope="col">Fecha</th>
+                        <th scope="col">Contacto</th>
+                        <th scope="col">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody id="venues-table-body"></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -589,6 +831,7 @@
       const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
       const tasksPath = `rooms/${ROOM}/tasks`;
       const guestsPath = `rooms/${ROOM}/guests`;
+      const venuesPath = `rooms/${ROOM}/venues`;
       const ideasPath = `rooms/${ROOM}/ideas`;
       const budgetPath = `rooms/${ROOM}/budget`;
       const budgetMetaPath = `${budgetPath}/meta`;
@@ -991,6 +1234,385 @@
         return rows.map((row) => row.map((cell) => escapeCsvCell(cell)).join(",")).join("\n");
       }
 
+      const VENUE_STATUS_VALUES = new Set([
+        "pendiente",
+        "visitado",
+        "favorito",
+        "descartado",
+      ]);
+
+      const sanitizeVenueText = (value) =>
+        typeof value === "string"
+          ? value.trim()
+          : typeof value === "number"
+          ? String(value).trim()
+          : "";
+
+      const normalizeVenueStatus = (value) =>
+        VENUE_STATUS_VALUES.has(value) ? value : "pendiente";
+
+      const normalizeVenueCapacity = (value) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return Math.max(0, Math.trunc(value));
+        }
+
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return null;
+          }
+
+          const parsed = Number.parseInt(trimmed, 10);
+          if (Number.isFinite(parsed)) {
+            return Math.max(0, parsed);
+          }
+        }
+
+        return null;
+      };
+
+      const normalizeVenuePrice = (value) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          if (value < 0) {
+            return null;
+          }
+          return Number.parseFloat(value.toFixed(2));
+        }
+
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return null;
+          }
+
+          const normalized = trimmed.replace(/,/g, ".");
+          const parsed = Number.parseFloat(normalized);
+
+          if (Number.isFinite(parsed) && parsed >= 0) {
+            return Number.parseFloat(parsed.toFixed(2));
+          }
+        }
+
+        return null;
+      };
+
+      const normalizeVenueDate = (value) => {
+        if (typeof value !== "string") {
+          return "";
+        }
+
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+          return "";
+        }
+
+        const [yearStr, monthStr, dayStr] = trimmed.split("-");
+
+        if (!yearStr || !monthStr || !dayStr) {
+          return "";
+        }
+
+        const year = Number.parseInt(yearStr, 10);
+        const month = Number.parseInt(monthStr, 10);
+        const day = Number.parseInt(dayStr, 10);
+
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+          return "";
+        }
+
+        const date = new Date(year, month - 1, day);
+
+        if (
+          date.getFullYear() !== year ||
+          date.getMonth() !== month - 1 ||
+          date.getDate() !== day
+        ) {
+          return "";
+        }
+
+        const normalizedMonth = String(month).padStart(2, "0");
+        const normalizedDay = String(day).padStart(2, "0");
+
+        return `${String(year).padStart(4, "0")}-${normalizedMonth}-${normalizedDay}`;
+      };
+
+      const normalizeVenueMapsUrl = (value) => {
+        if (typeof value !== "string") {
+          return "";
+        }
+
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+          return "";
+        }
+
+        if (!/^https?:\/\//i.test(trimmed)) {
+          return `https://${trimmed}`;
+        }
+
+        return trimmed;
+      };
+
+      const normalizeVenuePhotos = (value) => {
+        if (!Array.isArray(value)) {
+          return null;
+        }
+
+        const sanitized = value
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter((item) => Boolean(item));
+
+        return sanitized.length ? sanitized : null;
+      };
+
+      export function listenVenues(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const venuesRef = ref(db, venuesPath);
+            unsubscribe = onValue(
+              venuesRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en lugares.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de lugares.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function addVenue(venue) {
+        await waitForAuth();
+        ensureSync();
+
+        const venuesRef = ref(db, venuesPath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const name = sanitizeVenueText(venue?.name);
+
+        if (!name) {
+          throw new Error("NAME_REQUIRED");
+        }
+
+        const payload = {
+          name,
+          address: sanitizeVenueText(venue?.address),
+          mapsUrl: normalizeVenueMapsUrl(venue?.mapsUrl),
+          capacity: normalizeVenueCapacity(venue?.capacity),
+          price: normalizeVenuePrice(venue?.price),
+          availableDate: normalizeVenueDate(venue?.availableDate),
+          contact: sanitizeVenueText(venue?.contact),
+          notes: sanitizeVenueText(venue?.notes),
+          status: normalizeVenueStatus(venue?.status),
+          photos: normalizeVenuePhotos(venue?.photos),
+          createdAt: toTimestampValue(venue?.createdAt, now),
+          updatedAt: toTimestampValue(venue?.updatedAt, now),
+          createdBy:
+            sanitizeVenueText(venue?.createdBy) ||
+            (currentUser && currentUser.uid ? currentUser.uid : null),
+        };
+
+        if (!payload.address) {
+          payload.address = "";
+        }
+
+        if (!payload.mapsUrl) {
+          payload.mapsUrl = "";
+        }
+
+        if (!payload.contact) {
+          payload.contact = "";
+        }
+
+        if (!payload.notes) {
+          payload.notes = "";
+        }
+
+        if (!payload.photos) {
+          payload.photos = null;
+        }
+
+        try {
+          await push(venuesRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear el lugar en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateVenue(venueId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        const venueRef = ref(db, `${venuesPath}/${venueId}`);
+        const updatePayload = { updatedAt: Date.now() };
+
+        if (typeof changes?.name === "string") {
+          const trimmed = changes.name.trim();
+          if (trimmed) {
+            updatePayload.name = trimmed;
+          }
+        }
+
+        if (typeof changes?.address === "string") {
+          updatePayload.address = changes.address.trim();
+        }
+
+        if (typeof changes?.mapsUrl === "string") {
+          updatePayload.mapsUrl = normalizeVenueMapsUrl(changes.mapsUrl);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "capacity")) {
+          updatePayload.capacity = normalizeVenueCapacity(changes.capacity);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "price")) {
+          updatePayload.price = normalizeVenuePrice(changes.price);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "availableDate")) {
+          updatePayload.availableDate = normalizeVenueDate(changes.availableDate);
+        }
+
+        if (typeof changes?.contact === "string") {
+          updatePayload.contact = changes.contact.trim();
+        }
+
+        if (typeof changes?.notes === "string") {
+          updatePayload.notes = changes.notes.trim();
+        }
+
+        if (typeof changes?.status === "string") {
+          updatePayload.status = normalizeVenueStatus(changes.status);
+        }
+
+        if (Array.isArray(changes?.photos)) {
+          updatePayload.photos = normalizeVenuePhotos(changes.photos);
+        }
+
+        try {
+          await update(venueRef, updatePayload);
+        } catch (error) {
+          console.error("No se pudo actualizar el lugar en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteVenue(venueId) {
+        await waitForAuth();
+        ensureSync();
+
+        const venueRef = ref(db, `${venuesPath}/${venueId}`);
+
+        try {
+          await remove(venueRef);
+        } catch (error) {
+          console.error("No se pudo eliminar el lugar en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export function exportVenuesCSV(venuesData, appliedFilters = {}) {
+        const headers = [
+          "ID",
+          "Nombre",
+          "Dirección",
+          "Enlace Maps",
+          "Capacidad",
+          "Precio",
+          "Fecha disponible",
+          "Estado",
+          "Contacto",
+          "Notas",
+          "Creado",
+          "Actualizado",
+          "Creado por",
+        ];
+
+        const rows = [];
+
+        if (appliedFilters && typeof appliedFilters === "object") {
+          const filterParts = [];
+
+          if (appliedFilters.status && appliedFilters.status !== "todas") {
+            filterParts.push(`Estado=${appliedFilters.status}`);
+          }
+
+          if (appliedFilters.capacityMin !== undefined && appliedFilters.capacityMin !== "") {
+            filterParts.push(`Capacidad mínima=${appliedFilters.capacityMin}`);
+          }
+
+          if (appliedFilters.capacityMax !== undefined && appliedFilters.capacityMax !== "") {
+            filterParts.push(`Capacidad máxima=${appliedFilters.capacityMax}`);
+          }
+
+          if (appliedFilters.sort) {
+            filterParts.push(`Orden=${appliedFilters.sort}`);
+          }
+
+          if (appliedFilters.search) {
+            filterParts.push(`Búsqueda=${appliedFilters.search}`);
+          }
+
+          if (filterParts.length) {
+            rows.push(["Filtros aplicados", filterParts.join(" | ")]);
+          }
+        }
+
+        rows.push(headers);
+
+        const list = Array.isArray(venuesData)
+          ? venuesData
+          : Object.entries(venuesData ?? {}).map(([id, record]) => ({ id, ...(record ?? {}) }));
+
+        list.forEach((venue) => {
+          const capacityValue = normalizeVenueCapacity(venue.capacity);
+          const priceValue = normalizeVenuePrice(venue.price);
+
+          rows.push([
+            venue.id ?? "",
+            sanitizeVenueText(venue.name),
+            sanitizeVenueText(venue.address),
+            sanitizeVenueText(venue.mapsUrl),
+            capacityValue ?? "",
+            priceValue ?? "",
+            normalizeVenueDate(venue.availableDate),
+            normalizeVenueStatus(venue.status),
+            sanitizeVenueText(venue.contact),
+            sanitizeVenueText(venue.notes),
+            formatCsvDate(venue.createdAt),
+            formatCsvDate(venue.updatedAt),
+            sanitizeVenueText(venue.createdBy),
+          ]);
+        });
+
+        return rows.map((row) => row.map((cell) => escapeCsvCell(cell)).join(",")).join("\n");
+      }
+
       export function listenIdeas(callback) {
         if (!window.ENABLE_SYNC) {
           console.warn("La sincronización remota está desactivada.");
@@ -1272,6 +1894,11 @@
         updateGuest,
         deleteGuest,
         exportGuestsCSV,
+        listenVenues,
+        addVenue,
+        updateVenue,
+        deleteVenue,
+        exportVenuesCSV,
         listenIdeas,
         addIdea,
         toggleLike,
