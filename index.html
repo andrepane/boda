@@ -33,6 +33,16 @@
               Checklist
             </button>
             <button
+              id="cronograma-tab"
+              class="tabs__tab"
+              type="button"
+              data-target="cronograma"
+              aria-controls="cronograma"
+              aria-selected="false"
+            >
+              Cronograma
+            </button>
+            <button
               id="ideas-tab"
               class="tabs__tab"
               type="button"
@@ -157,6 +167,83 @@
               </div>
 
               <ul class="checklist__list" id="task-list"></ul>
+            </div>
+          </section>
+
+          <section id="cronograma" class="tab-content" role="tabpanel" aria-labelledby="cronograma-tab">
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Cronograma</h2>
+                <p class="panel__subtitle">
+                  Define hitos, asigna responsables y controla recordatorios para mantener el ritmo de la organización.
+                </p>
+              </header>
+
+              <form id="milestone-form" class="form-grid timeline-form" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="milestone-title">Hito</label>
+                  <input
+                    id="milestone-title"
+                    class="form-control"
+                    type="text"
+                    placeholder="Reunión con el catering, prueba de vestido…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="milestone-date">Fecha</label>
+                  <input id="milestone-date" class="form-control" type="date" required />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="milestone-status">Estado</label>
+                  <select id="milestone-status" class="form-control" required>
+                    <option value="planned" selected>Planificado</option>
+                    <option value="in-progress">En curso</option>
+                    <option value="done">Completado</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="milestone-responsibles">Responsables</label>
+                  <input
+                    id="milestone-responsibles"
+                    class="form-control"
+                    type="text"
+                    placeholder="Nombres separados por coma"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="milestone-reminder">Recordatorio</label>
+                  <select id="milestone-reminder" class="form-control" required>
+                    <option value="none" selected>Sin recordatorio</option>
+                    <option value="1w">Una semana antes</option>
+                    <option value="3d">Tres días antes</option>
+                    <option value="1d">Un día antes</option>
+                  </select>
+                </div>
+
+                <button class="button form-submit timeline-form__submit" type="submit">Agregar hito</button>
+              </form>
+
+              <div class="timeline-summary" aria-live="polite">
+                <div class="summary__item">
+                  <span class="summary__label">Planificados</span>
+                  <strong id="milestone-planned" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">En curso</span>
+                  <strong id="milestone-in-progress" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Completados</span>
+                  <strong id="milestone-done" class="summary__value">0</strong>
+                </div>
+              </div>
+
+              <ol id="timeline-list" class="timeline" aria-live="polite"></ol>
             </div>
           </section>
 
