@@ -153,32 +153,78 @@
           <section id="ideas" class="tab-content" role="tabpanel" aria-labelledby="ideas-tab">
             <div class="panel">
               <header class="panel__header">
-                <h2 class="panel__title">Ideas y inspiracion</h2>
+                <h2 class="panel__title">Ideas e inspiración</h2>
                 <p class="panel__subtitle">
-                  Galeria para anotar estilos, colores y proveedores favoritos.
+                  Guarda referencias de decoración, proveedores y detalles especiales.
                 </p>
               </header>
 
-              <div class="gallery">
-                <article class="gallery__card">
-                  <h3 class="gallery__title">Decoracion</h3>
-                  <p class="gallery__text">
-                    Guarda links a arreglos florales, seating charts o invitaciones que te gusten.
-                  </p>
-                </article>
-                <article class="gallery__card">
-                  <h3 class="gallery__title">Momentos clave</h3>
-                  <p class="gallery__text">
-                    Escribe ideas para la ceremonia, discursos o una cancion especial para el primer baile.
-                  </p>
-                </article>
-                <article class="gallery__card">
-                  <h3 class="gallery__title">Lista de deseos</h3>
-                  <p class="gallery__text">
-                    Añade referencias para recuerdos, detalles de mesas o sorpresas para invitados.
-                  </p>
-                </article>
+              <form id="idea-form" class="form-grid" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="idea-title">Título</label>
+                  <input
+                    id="idea-title"
+                    class="form-control"
+                    type="text"
+                    placeholder="Centro de mesa, invitaciones…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="idea-url">URL</label>
+                  <input
+                    id="idea-url"
+                    class="form-control"
+                    type="url"
+                    placeholder="https://"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="idea-category">Categoría</label>
+                  <input
+                    id="idea-category"
+                    class="form-control"
+                    type="text"
+                    placeholder="Decoración, música, viaje…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="idea-note">Nota</label>
+                  <textarea
+                    id="idea-note"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Detalles para recordar"
+                  ></textarea>
+                </div>
+
+                <button class="button form-submit" type="submit">Guardar idea</button>
+              </form>
+
+              <div class="ideas-toolbar">
+                <div class="ideas-filter">
+                  <label class="form-label" for="idea-search">Buscar</label>
+                  <input
+                    id="idea-search"
+                    class="form-control"
+                    type="search"
+                    placeholder="Buscar por título"
+                  />
+                </div>
+
+                <div class="ideas-filter">
+                  <label class="form-label" for="idea-category-filter">Categoría</label>
+                  <select id="idea-category-filter" class="form-control">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
               </div>
+
+              <div id="ideas-grid" class="ideas-grid" aria-live="polite"></div>
             </div>
           </section>
 
@@ -187,15 +233,145 @@
               <header class="panel__header">
                 <h2 class="panel__title">Invitados</h2>
                 <p class="panel__subtitle">
-                  Prepara una lista maestra y anota confirmaciones o necesidades especiales.
+                  Gestiona confirmaciones, acompañantes y notas especiales en tiempo real.
                 </p>
               </header>
 
-              <div class="info-card">
-                <p class="info-card__line">Crea grupos por familias, amigos y trabajo.</p>
-                <p class="info-card__line">Marca asistentes confirmados y acompanantes.</p>
-                <p class="info-card__line">Exporta la lista para coordinar las mesas.</p>
+              <form id="guest-form" class="form-grid" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="guest-name">Nombre</label>
+                  <input
+                    id="guest-name"
+                    class="form-control"
+                    type="text"
+                    placeholder="Nombre completo"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-side">Lado</label>
+                  <select id="guest-side" class="form-control" required>
+                    <option value="novia">Novia</option>
+                    <option value="novio">Novio</option>
+                    <option value="ambos">Ambos</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-group">Grupo</label>
+                  <input
+                    id="guest-group"
+                    class="form-control"
+                    type="text"
+                    placeholder="Familia, amigos…"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-rsvp">RSVP</label>
+                  <select id="guest-rsvp" class="form-control">
+                    <option value="pending">Pendiente</option>
+                    <option value="yes">Confirmado</option>
+                    <option value="no">Rechazado</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-plus">Acompañantes</label>
+                  <input
+                    id="guest-plus"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value="0"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-contact">Contacto</label>
+                  <input
+                    id="guest-contact"
+                    class="form-control"
+                    type="text"
+                    placeholder="Correo o teléfono"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="guest-dietary">Restricciones</label>
+                  <input
+                    id="guest-dietary"
+                    class="form-control"
+                    type="text"
+                    placeholder="Sin gluten, vegetariano…"
+                  />
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="guest-notes">Notas</label>
+                  <textarea
+                    id="guest-notes"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Comentarios extra"
+                  ></textarea>
+                </div>
+
+                <button class="button form-submit" type="submit">Agregar invitado</button>
+              </form>
+
+              <div class="guest-summary" aria-live="polite">
+                <div class="summary__item">
+                  <span class="summary__label">Invitados</span>
+                  <strong id="guest-total" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Confirmados</span>
+                  <strong id="guest-confirmed" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Pendientes</span>
+                  <strong id="guest-pending" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Personas totales</span>
+                  <strong id="guest-people" class="summary__value">0</strong>
+                </div>
               </div>
+
+              <div class="guest-toolbar">
+                <div class="guest-filter">
+                  <label class="form-label" for="guest-search">Buscar</label>
+                  <input
+                    id="guest-search"
+                    class="form-control"
+                    type="search"
+                    placeholder="Buscar por nombre"
+                  />
+                </div>
+                <div class="guest-filter">
+                  <label class="form-label" for="guest-rsvp-filter">RSVP</label>
+                  <select id="guest-rsvp-filter" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="yes">Confirmados</option>
+                    <option value="pending">Pendientes</option>
+                    <option value="no">Rechazados</option>
+                  </select>
+                </div>
+                <div class="guest-filter">
+                  <label class="form-label" for="guest-group-filter">Grupo</label>
+                  <select id="guest-group-filter" class="form-control">
+                    <option value="">Todos</option>
+                  </select>
+                </div>
+                <button id="guest-export" class="button button--ghost" type="button">
+                  Exportar CSV
+                </button>
+              </div>
+
+              <ul id="guest-list" class="guest-list" aria-live="polite"></ul>
             </div>
           </section>
 
@@ -204,29 +380,153 @@
               <header class="panel__header">
                 <h2 class="panel__title">Presupuesto</h2>
                 <p class="panel__subtitle">
-                  Establece tu presupuesto objetivo y controla gastos estimados y reales.
+                  Define tu objetivo, sigue gastos estimados y reales y controla pagos.
                 </p>
               </header>
 
-              <div class="budget-grid">
-                <article class="budget-card">
-                  <h3 class="budget-card__title">Vista general</h3>
-                  <p class="budget-card__text">
-                    Divide el presupuesto entre catering, musica, fotografia y otros rubros clave.
-                  </p>
-                </article>
-                <article class="budget-card">
-                  <h3 class="budget-card__title">Control mensual</h3>
-                  <p class="budget-card__text">
-                    Haz seguimiento de pagos y fechas limites para evitar sorpresas de ultimo momento.
-                  </p>
-                </article>
-                <article class="budget-card">
-                  <h3 class="budget-card__title">Ahorros e imprevistos</h3>
-                  <p class="budget-card__text">
-                    Reserva un porcentaje para detalles de ultima hora o mejoras de experiencia.
-                  </p>
-                </article>
+              <form id="budget-target-form" class="budget-target" autocomplete="off">
+                <label class="form-label" for="budget-target">Objetivo general</label>
+                <div class="budget-target__controls">
+                  <input
+                    id="budget-target"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                  />
+                  <button class="button button--compact" type="submit">Guardar objetivo</button>
+                </div>
+              </form>
+
+              <div class="budget-summary" aria-live="polite">
+                <div class="budget-summary__item">
+                  <span class="summary__label">Objetivo</span>
+                  <strong id="budget-target-value" class="summary__value">0</strong>
+                </div>
+                <div class="budget-summary__item">
+                  <span class="summary__label">Estimado</span>
+                  <strong id="budget-estimated" class="summary__value">0</strong>
+                </div>
+                <div class="budget-summary__item">
+                  <span class="summary__label">Real</span>
+                  <strong id="budget-actual" class="summary__value">0</strong>
+                </div>
+                <div class="budget-summary__item">
+                  <span class="summary__label">Pagado</span>
+                  <strong id="budget-paid" class="summary__value">0</strong>
+                </div>
+                <div class="budget-summary__item">
+                  <span class="summary__label">% Pagado</span>
+                  <strong id="budget-paid-percent" class="summary__value">0%</strong>
+                </div>
+                <div class="budget-summary__item">
+                  <span class="summary__label">Diferencia</span>
+                  <strong id="budget-diff" class="summary__value">0</strong>
+                </div>
+              </div>
+
+              <form id="budget-item-form" class="form-grid budget-item-form" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="budget-title">Concepto</label>
+                  <input
+                    id="budget-title"
+                    class="form-control"
+                    type="text"
+                    placeholder="Catering, música, flores…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="budget-category">Categoría</label>
+                  <input
+                    id="budget-category"
+                    class="form-control"
+                    type="text"
+                    placeholder="Catering, foto…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="budget-estimate">Estimado</label>
+                  <input
+                    id="budget-estimate"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="budget-actual-input">Real</label>
+                  <input
+                    id="budget-actual-input"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="budget-provider">Proveedor</label>
+                  <input
+                    id="budget-provider"
+                    class="form-control"
+                    type="text"
+                    placeholder="Nombre o contacto"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="budget-date">Fecha</label>
+                  <input id="budget-date" class="form-control" type="date" />
+                </div>
+
+                <button class="button form-submit" type="submit">Agregar gasto</button>
+              </form>
+
+              <div class="budget-toolbar">
+                <div class="budget-filter">
+                  <label class="form-label" for="budget-category-filter">Categoría</label>
+                  <select id="budget-category-filter" class="form-control">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
+                <div class="budget-filter">
+                  <label class="form-label" for="budget-paid-filter">Pagado</label>
+                  <select id="budget-paid-filter" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="paid">Pagados</option>
+                    <option value="pending">Pendientes</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="table-wrapper">
+                <table class="budget-table" aria-describedby="presupuesto-tab">
+                  <thead>
+                    <tr>
+                      <th scope="col">Concepto</th>
+                      <th scope="col">Categoría</th>
+                      <th scope="col">Estimado</th>
+                      <th scope="col">Real</th>
+                      <th scope="col">
+                        <span aria-hidden="true">Δ</span>
+                        <span class="visually-hidden">Diferencia</span>
+                      </th>
+                      <th scope="col">Pagado</th>
+                      <th scope="col">Fecha</th>
+                      <th scope="col">Proveedor</th>
+                      <th scope="col" class="visually-hidden">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="budget-table-body"></tbody>
+                </table>
               </div>
             </div>
           </section>
@@ -278,6 +578,11 @@
       const db = getDatabase(app);
       const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
       const tasksPath = `rooms/${ROOM}/tasks`;
+      const guestsPath = `rooms/${ROOM}/guests`;
+      const ideasPath = `rooms/${ROOM}/ideas`;
+      const budgetPath = `rooms/${ROOM}/budget`;
+      const budgetMetaPath = `${budgetPath}/meta`;
+      const budgetItemsPath = `${budgetPath}/items`;
 
       function ensureSync() {
         if (!window.ENABLE_SYNC) {
@@ -430,11 +735,547 @@
         }
       }
 
+      const RSVP_VALUES = new Set(["pending", "yes", "no"]);
+      const SIDE_VALUES = new Set(["novia", "novio", "ambos"]);
+
+      const sanitizeText = (value) =>
+        typeof value === "string" ? value.trim() : typeof value === "number" ? String(value).trim() : "";
+
+      const normalizePlusOnes = (value) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return Math.max(0, Math.trunc(value));
+        }
+
+        if (typeof value === "string") {
+          const parsed = Number.parseInt(value, 10);
+          if (Number.isFinite(parsed)) {
+            return Math.max(0, parsed);
+          }
+        }
+
+        return 0;
+      };
+
+      const normalizeRsvp = (value) => (RSVP_VALUES.has(value) ? value : "pending");
+
+      const normalizeSide = (value) => (SIDE_VALUES.has(value) ? value : "ambos");
+
+      const toTimestampValue = (value, fallback) =>
+        typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+      export function listenGuests(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const guestsRef = ref(db, guestsPath);
+            unsubscribe = onValue(
+              guestsRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en invitados.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de invitados.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function addGuest(guest) {
+        await waitForAuth();
+        ensureSync();
+
+        const guestsRef = ref(db, guestsPath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const name = sanitizeText(guest?.name);
+
+        if (!name) {
+          throw new Error("NAME_REQUIRED");
+        }
+
+        const payload = {
+          name,
+          side: normalizeSide(guest?.side),
+          group: sanitizeText(guest?.group),
+          rsvp: normalizeRsvp(guest?.rsvp),
+          plusOnes: normalizePlusOnes(guest?.plusOnes),
+          dietary: sanitizeText(guest?.dietary),
+          notes: sanitizeText(guest?.notes),
+          contact: sanitizeText(guest?.contact),
+          createdAt: toTimestampValue(guest?.createdAt, now),
+          updatedAt: toTimestampValue(guest?.updatedAt, now),
+          createdBy:
+            sanitizeText(guest?.createdBy) || (currentUser && currentUser.uid ? currentUser.uid : null),
+        };
+
+        try {
+          await push(guestsRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear el invitado en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateGuest(guestId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        const guestRef = ref(db, `${guestsPath}/${guestId}`);
+        const updatePayload = {};
+
+        if (typeof changes?.name === "string") {
+          const trimmed = changes.name.trim();
+          if (trimmed) {
+            updatePayload.name = trimmed;
+          }
+        }
+
+        if (typeof changes?.group === "string") {
+          updatePayload.group = changes.group.trim();
+        }
+
+        if (typeof changes?.contact === "string") {
+          updatePayload.contact = changes.contact.trim();
+        }
+
+        if (typeof changes?.dietary === "string") {
+          updatePayload.dietary = changes.dietary.trim();
+        }
+
+        if (typeof changes?.notes === "string") {
+          updatePayload.notes = changes.notes.trim();
+        }
+
+        if (typeof changes?.side === "string") {
+          updatePayload.side = normalizeSide(changes.side);
+        }
+
+        if (typeof changes?.rsvp === "string") {
+          updatePayload.rsvp = normalizeRsvp(changes.rsvp);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "plusOnes")) {
+          updatePayload.plusOnes = normalizePlusOnes(changes.plusOnes);
+        }
+
+        updatePayload.updatedAt = Date.now();
+
+        try {
+          await update(guestRef, updatePayload);
+        } catch (error) {
+          console.error("No se pudo actualizar el invitado en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteGuest(guestId) {
+        await waitForAuth();
+        ensureSync();
+
+        const guestRef = ref(db, `${guestsPath}/${guestId}`);
+
+        try {
+          await remove(guestRef);
+        } catch (error) {
+          console.error("No se pudo eliminar el invitado en Firebase.", error);
+          throw error;
+        }
+      }
+
+      const escapeCsvCell = (value) => {
+        if (value === null || value === undefined) {
+          return "";
+        }
+
+        const stringValue = String(value).replace(/[\r\n]+/g, " ").trim();
+        if (stringValue === "") {
+          return "";
+        }
+
+        if (/[",;]/.test(stringValue)) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+
+        return stringValue;
+      };
+
+      const formatCsvDate = (timestamp) => {
+        if (typeof timestamp !== "number" || !Number.isFinite(timestamp)) {
+          return "";
+        }
+
+        try {
+          return new Date(timestamp).toISOString();
+        } catch (error) {
+          return "";
+        }
+      };
+
+      export function exportGuestsCSV(guestsObj) {
+        const headers = [
+          "ID",
+          "Nombre",
+          "Lado",
+          "Grupo",
+          "RSVP",
+          "Acompañantes",
+          "Personas totales",
+          "Restricciones",
+          "Notas",
+          "Contacto",
+          "Creado",
+          "Actualizado",
+          "Creado por",
+        ];
+
+        const rows = [headers];
+
+        if (guestsObj && typeof guestsObj === "object") {
+          Object.entries(guestsObj).forEach(([id, record]) => {
+            if (!record || typeof record !== "object") {
+              return;
+            }
+
+            const plusOnes = normalizePlusOnes(record.plusOnes);
+            const totalPeople = 1 + plusOnes;
+
+            rows.push([
+              id,
+              sanitizeText(record.name),
+              normalizeSide(record.side),
+              sanitizeText(record.group),
+              normalizeRsvp(record.rsvp),
+              plusOnes,
+              totalPeople,
+              sanitizeText(record.dietary),
+              sanitizeText(record.notes),
+              sanitizeText(record.contact),
+              formatCsvDate(record.createdAt),
+              formatCsvDate(record.updatedAt),
+              sanitizeText(record.createdBy),
+            ]);
+          });
+        }
+
+        return rows.map((row) => row.map((cell) => escapeCsvCell(cell)).join(",")).join("\n");
+      }
+
+      export function listenIdeas(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const ideasRef = ref(db, ideasPath);
+            unsubscribe = onValue(
+              ideasRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en ideas.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de ideas.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function addIdea(idea, uid) {
+        await waitForAuth();
+        ensureSync();
+
+        const ideasRef = ref(db, ideasPath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const title = sanitizeText(idea?.title);
+
+        if (!title) {
+          throw new Error("TITLE_REQUIRED");
+        }
+
+        const urlValue = sanitizeText(idea?.url);
+
+        const payload = {
+          title,
+          url: urlValue || "",
+          category: sanitizeText(idea?.category) || "Sin categoría",
+          note: sanitizeText(idea?.note),
+          likes: idea?.likes && typeof idea.likes === "object" ? idea.likes : {},
+          createdAt: toTimestampValue(idea?.createdAt, now),
+          updatedAt: toTimestampValue(idea?.updatedAt, now),
+          createdBy:
+            sanitizeText(idea?.createdBy) || uid || (currentUser && currentUser.uid ? currentUser.uid : null),
+        };
+
+        try {
+          await push(ideasRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear la idea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function toggleLike(ideaId, uid, isLiked) {
+        await waitForAuth();
+        ensureSync();
+
+        if (!ideaId || !uid) {
+          throw new Error("LIKE_DATA_MISSING");
+        }
+
+        const ideaRef = ref(db, `${ideasPath}/${ideaId}`);
+        const updates = { updatedAt: Date.now() };
+
+        updates[`likes/${uid}`] = isLiked ? null : true;
+
+        try {
+          await update(ideaRef, updates);
+        } catch (error) {
+          console.error("No se pudo actualizar el like en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteIdea(ideaId) {
+        await waitForAuth();
+        ensureSync();
+
+        const ideaRef = ref(db, `${ideasPath}/${ideaId}`);
+
+        try {
+          await remove(ideaRef);
+        } catch (error) {
+          console.error("No se pudo eliminar la idea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export function listenBudget(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const budgetRef = ref(db, budgetPath);
+            unsubscribe = onValue(
+              budgetRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                const meta = value.meta ?? {};
+                const items = value.items ?? {};
+                callback({ meta, items });
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en presupuesto.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de presupuesto.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      const normalizeAmount = (value) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return Number.parseFloat(value.toFixed(2));
+        }
+
+        if (typeof value === "string") {
+          const cleaned = value.replace(/,/g, ".");
+          const parsed = Number.parseFloat(cleaned);
+          if (Number.isFinite(parsed)) {
+            return Number.parseFloat(parsed.toFixed(2));
+          }
+        }
+
+        return 0;
+      };
+
+      export async function setBudgetTarget(target) {
+        await waitForAuth();
+        ensureSync();
+
+        const value = normalizeAmount(target);
+        const payload = { target: value, updatedAt: Date.now() };
+
+        try {
+          await update(ref(db, budgetMetaPath), payload);
+        } catch (error) {
+          console.error("No se pudo actualizar el objetivo de presupuesto en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function addBudgetItem(item) {
+        await waitForAuth();
+        ensureSync();
+
+        const itemsRef = ref(db, budgetItemsPath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const title = sanitizeText(item?.title);
+
+        if (!title) {
+          throw new Error("TITLE_REQUIRED");
+        }
+
+        const payload = {
+          title,
+          category: sanitizeText(item?.category) || "General",
+          est: normalizeAmount(item?.est),
+          act: normalizeAmount(item?.act),
+          paid: Boolean(item?.paid),
+          dueDate: sanitizeText(item?.dueDate),
+          provider: sanitizeText(item?.provider),
+          createdAt: toTimestampValue(item?.createdAt, now),
+          updatedAt: toTimestampValue(item?.updatedAt, now),
+          createdBy:
+            sanitizeText(item?.createdBy) || (currentUser && currentUser.uid ? currentUser.uid : null),
+        };
+
+        try {
+          await push(itemsRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear el gasto en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateBudgetItem(itemId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        const itemRef = ref(db, `${budgetItemsPath}/${itemId}`);
+        const payload = { updatedAt: Date.now() };
+
+        if (typeof changes?.title === "string" && changes.title.trim()) {
+          payload.title = changes.title.trim();
+        }
+
+        if (typeof changes?.category === "string") {
+          payload.category = changes.category.trim();
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "est")) {
+          payload.est = normalizeAmount(changes.est);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "act")) {
+          payload.act = normalizeAmount(changes.act);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "paid")) {
+          payload.paid = Boolean(changes.paid);
+        }
+
+        if (typeof changes?.dueDate === "string") {
+          payload.dueDate = changes.dueDate.trim();
+        }
+
+        if (typeof changes?.provider === "string") {
+          payload.provider = changes.provider.trim();
+        }
+
+        try {
+          await update(itemRef, payload);
+        } catch (error) {
+          console.error("No se pudo actualizar el gasto en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteBudgetItem(itemId) {
+        await waitForAuth();
+        ensureSync();
+
+        const itemRef = ref(db, `${budgetItemsPath}/${itemId}`);
+
+        try {
+          await remove(itemRef);
+        } catch (error) {
+          console.error("No se pudo eliminar el gasto en Firebase.", error);
+          throw error;
+        }
+      }
+
       window.FirebaseSync = {
         listenTasks,
         addTask,
         toggleTask,
         deleteTask,
+        listenGuests,
+        addGuest,
+        updateGuest,
+        deleteGuest,
+        exportGuestsCSV,
+        listenIdeas,
+        addIdea,
+        toggleLike,
+        deleteIdea,
+        listenBudget,
+        setBudgetTarget,
+        addBudgetItem,
+        updateBudgetItem,
+        deleteBudgetItem,
+      };
+
+      window.FirebaseSession = {
+        waitForAuth,
+        getCurrentUser: () => auth.currentUser,
       };
 
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
