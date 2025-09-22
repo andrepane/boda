@@ -1495,6 +1495,8 @@ const createIdeaImageViewer = () => {
     if (lastActiveElement && typeof lastActiveElement.focus === 'function') {
       lastActiveElement.focus();
     }
+
+    lastActiveElement = null;
   };
 
   const ensureElements = () => {
@@ -2165,6 +2167,1964 @@ const initializeIdeasSection = () => {
     });
 };
 
+// Lugares
+const venueForm = document.getElementById('venue-form');
+const venueNameInput = document.getElementById('venue-name');
+const venueAddressInput = document.getElementById('venue-address');
+const venueMapsInput = document.getElementById('venue-maps');
+const venueCapacityInput = document.getElementById('venue-capacity');
+const venuePriceInput = document.getElementById('venue-price');
+const venueDateInput = document.getElementById('venue-date');
+const venueContactInput = document.getElementById('venue-contact');
+const venueNotesInput = document.getElementById('venue-notes');
+const venueStatusSelect = document.getElementById('venue-status');
+
+const venuesGrid = document.getElementById('venues-grid');
+const venuesTableWrapper = document.getElementById('venues-table');
+const venuesTableBody = document.getElementById('venues-table-body');
+
+const venueStatusFilter = document.getElementById('venue-status-filter');
+const venueCapacityMinInput = document.getElementById('venue-capacity-min');
+const venueCapacityMaxInput = document.getElementById('venue-capacity-max');
+const venueSortSelect = document.getElementById('venue-sort');
+const venueSearchInput = document.getElementById('venue-search');
+const venueViewCardsButton = document.getElementById('venue-view-cards');
+const venueViewTableButton = document.getElementById('venue-view-table');
+const venueExportButton = document.getElementById('venue-export');
+
+const venueSummaryElements = {
+  total: document.getElementById('venue-total'),
+  favorites: document.getElementById('venue-favorites'),
+  pending: document.getElementById('venue-pending'),
+  average: document.getElementById('venue-price-avg'),
+  median: document.getElementById('venue-price-median'),
+};
+
+const VENUE_STATUS_OPTIONS = [
+  { value: 'pendiente', label: 'Pendiente' },
+  { value: 'visitado', label: 'Visitado' },
+  { value: 'favorito', label: 'Favorito' },
+  { value: 'descartado', label: 'Descartado' },
+];
+
+const VENUE_STATUS_LABELS = VENUE_STATUS_OPTIONS.reduce((labels, option) => {
+  labels[option.value] = option.label;
+  return labels;
+}, {});
+
+const VENUE_DEFAULT_STATUS = 'pendiente';
+const VENUE_STORAGE_KEY = 'venues-preferences';
+
+const venueCurrencyFormatter = new Intl.NumberFormat('es-ES', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
+
+const formatVenuePrice = (value) =>
+  typeof value === 'number' && Number.isFinite(value) ? venueCurrencyFormatter.format(value) : '';
+
+const sanitizeVenueUrl = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  return trimmed;
+};
+
+const normalizeVenueStatusValue = (value) =>
+  Object.prototype.hasOwnProperty.call(VENUE_STATUS_LABELS, value) ? value : VENUE_DEFAULT_STATUS;
+
+const normalizeVenueCapacityValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.trunc(value));
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number.parseInt(trimmed, 10);
+
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, parsed);
+    }
+  }
+
+  return null;
+};
+
+const normalizeVenuePriceValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0) {
+      return null;
+    }
+
+    return Number.parseFloat(value.toFixed(2));
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const normalized = trimmed.replace(/,/g, '.');
+    const parsed = Number.parseFloat(normalized);
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Number.parseFloat(parsed.toFixed(2));
+    }
+  }
+
+  return null;
+};
+
+const normalizeVenueDateValue = (value) => normalizeDueDate(value);
+
+const formatVenueDate = (value) => {
+  const normalized = normalizeVenueDateValue(value);
+
+  if (!normalized) {
+    return '';
+  }
+
+  const [year, month, day] = normalized.split('-').map((part) => Number.parseInt(part, 10));
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
+
+const normalizeVenueRecord = (id, record) => {
+  if (!record || typeof record !== 'object') {
+    return null;
+  }
+
+  const name = sanitizeEntityText(record.name);
+
+  if (!name) {
+    return null;
+  }
+
+  const capacity = normalizeVenueCapacityValue(record.capacity);
+  const price = normalizeVenuePriceValue(record.price);
+  const availableDate = normalizeVenueDateValue(record.availableDate);
+  const mapsUrl = sanitizeVenueUrl(record.mapsUrl);
+
+  const photos = Array.isArray(record.photos)
+    ? record.photos.map((photo) => sanitizeEntityText(photo)).filter((photo) => Boolean(photo))
+    : [];
+
+  return {
+    id,
+    name,
+    address: sanitizeEntityText(record.address),
+    mapsUrl,
+    capacity,
+    price,
+    availableDate,
+    contact: sanitizeEntityText(record.contact),
+    notes: sanitizeEntityText(record.notes),
+    status: normalizeVenueStatusValue(record.status),
+    photos,
+    createdAt: toTimestamp(record.createdAt),
+    updatedAt: toTimestamp(record.updatedAt),
+    createdBy: sanitizeEntityText(record.createdBy),
+  };
+};
+
+const mapVenueRecords = (records) =>
+  Object.entries(records ?? {})
+    .map(([id, value]) => normalizeVenueRecord(id, value))
+    .filter((venue) => venue !== null)
+    .sort((first, second) => {
+      const firstTime =
+        typeof first.updatedAt === 'number'
+          ? first.updatedAt
+          : typeof first.createdAt === 'number'
+          ? first.createdAt
+          : 0;
+      const secondTime =
+        typeof second.updatedAt === 'number'
+          ? second.updatedAt
+          : typeof second.createdAt === 'number'
+          ? second.createdAt
+          : 0;
+
+      return secondTime - firstTime;
+    });
+
+const createVenuesStore = () => {
+  let sync = null;
+  let unsubscribe = () => {};
+  let venues = [];
+  let rawRecords = {};
+  const listeners = new Set();
+
+  const emit = () => {
+    const snapshot = {
+      venues: venues.map((venue) => ({ ...venue })),
+      raw: { ...rawRecords },
+    };
+
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const ensureSync = async () => {
+    if (sync) {
+      return sync;
+    }
+
+    const instance = await waitForFirebaseSync();
+
+    if (!instance) {
+      throw new Error('SYNC_UNAVAILABLE');
+    }
+
+    sync = instance;
+    return sync;
+  };
+
+  const init = () =>
+    ensureSync()
+      .then((instance) => {
+        if (!instance || typeof instance.listenVenues !== 'function') {
+          return;
+        }
+
+        unsubscribe();
+        unsubscribe = () => {};
+
+        try {
+          const stop = instance.listenVenues((records) => {
+            rawRecords = records ?? {};
+            venues = mapVenueRecords(records);
+            emit();
+          });
+
+          unsubscribe = typeof stop === 'function' ? stop : () => {};
+        } catch (error) {
+          console.warn('No se pudo iniciar la escucha de lugares.', error);
+        }
+      })
+      .catch((error) => {
+        console.warn('No se pudo iniciar la sincronización de lugares.', error);
+      });
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener({ venues: venues.map((venue) => ({ ...venue })), raw: { ...rawRecords } });
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const addVenue = (payload) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.addVenue !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.addVenue(payload);
+    });
+
+  const updateVenue = (venueId, changes) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.updateVenue !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.updateVenue(venueId, changes);
+    });
+
+  const deleteVenue = (venueId) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.deleteVenue !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.deleteVenue(venueId);
+    });
+
+  const exportCSV = (records, filters) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.exportVenuesCSV !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.exportVenuesCSV(records, filters);
+    });
+
+  const destroy = () => {
+    try {
+      unsubscribe();
+    } catch (error) {
+      console.warn('No se pudo detener la escucha de lugares.', error);
+    }
+
+    unsubscribe = () => {};
+    listeners.clear();
+  };
+
+  const getSnapshot = () => ({
+    venues: venues.map((venue) => ({ ...venue })),
+    raw: { ...rawRecords },
+  });
+
+  return {
+    init,
+    subscribe,
+    addVenue,
+    updateVenue,
+    deleteVenue,
+    exportCSV,
+    destroy,
+    getSnapshot,
+  };
+};
+
+const venuesStore = createVenuesStore();
+
+const createVenueEditor = () => {
+  let container = null;
+  let dialog = null;
+  let form = null;
+  let fields = {};
+  let titleElement = null;
+  let subtitleElement = null;
+  let closeButton = null;
+  let cancelButton = null;
+  let submitButton = null;
+  let lastActiveElement = null;
+  let currentVenueId = null;
+  let isSaving = false;
+
+  const resetFormValues = () => {
+    if (!form || !fields) {
+      return;
+    }
+
+    form.reset();
+
+    Object.entries(fields).forEach(([key, input]) => {
+      if (!input) {
+        return;
+      }
+
+      if (key === 'status') {
+        input.value = VENUE_DEFAULT_STATUS;
+        return;
+      }
+
+      input.value = '';
+    });
+  };
+
+  const setSavingState = (saving) => {
+    isSaving = saving;
+
+    if (submitButton) {
+      submitButton.disabled = saving;
+      submitButton.textContent = saving ? 'Guardando…' : 'Guardar cambios';
+    }
+
+    if (cancelButton) {
+      cancelButton.disabled = saving;
+    }
+
+    if (closeButton) {
+      closeButton.disabled = saving;
+    }
+  };
+
+  const close = () => {
+    if (!container || isSaving) {
+      return;
+    }
+
+    container.classList.remove('is-visible');
+    container.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('venue-editor-open');
+
+    resetFormValues();
+    setSavingState(false);
+    currentVenueId = null;
+
+    if (subtitleElement) {
+      subtitleElement.textContent = '';
+    }
+
+    if (lastActiveElement && typeof lastActiveElement.focus === 'function') {
+      lastActiveElement.focus();
+    }
+
+    lastActiveElement = null;
+  };
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (!currentVenueId || !fields.name) {
+      return;
+    }
+
+    const name = sanitizeEntityText(fields.name.value);
+
+    if (!name) {
+      alert('El nombre es obligatorio.');
+      fields.name.focus();
+      return;
+    }
+
+    const address = sanitizeEntityText(fields.address ? fields.address.value : '');
+    const mapsUrl = sanitizeVenueUrl(fields.maps ? fields.maps.value : '');
+    const capacityValue = normalizeVenueCapacityValue(
+      fields.capacity ? fields.capacity.value : '',
+    );
+    const priceValue = normalizeVenuePriceValue(fields.price ? fields.price.value : '');
+    const dateValue = normalizeVenueDateValue(fields.date ? fields.date.value : '');
+    const contact = sanitizeEntityText(fields.contact ? fields.contact.value : '');
+    const notes = sanitizeEntityText(fields.notes ? fields.notes.value : '');
+    const statusValue = normalizeVenueStatusValue(
+      fields.status ? fields.status.value : VENUE_DEFAULT_STATUS,
+    );
+
+    fields.name.value = name;
+    if (fields.address) {
+      fields.address.value = address;
+    }
+    if (fields.maps) {
+      fields.maps.value = mapsUrl;
+    }
+    if (fields.capacity) {
+      fields.capacity.value = capacityValue !== null ? String(capacityValue) : '';
+    }
+    if (fields.price) {
+      fields.price.value = priceValue !== null ? String(priceValue) : '';
+    }
+    if (fields.date) {
+      fields.date.value = dateValue || '';
+    }
+    if (fields.contact) {
+      fields.contact.value = contact;
+    }
+    if (fields.notes) {
+      fields.notes.value = notes;
+    }
+    if (fields.status) {
+      fields.status.value = statusValue;
+    }
+
+    setSavingState(true);
+
+    const update = venuesStore.updateVenue(currentVenueId, {
+      name,
+      address,
+      mapsUrl,
+      capacity: capacityValue,
+      price: priceValue,
+      availableDate: dateValue || '',
+      contact,
+      notes,
+      status: statusValue,
+    });
+
+    if (!update || typeof update.then !== 'function') {
+      setSavingState(false);
+      close();
+      return;
+    }
+
+    update
+      .then(() => {
+        setSavingState(false);
+        close();
+      })
+      .catch((error) => {
+        setSavingState(false);
+        console.error('No se pudo actualizar el lugar.', error);
+        alert('No se pudo guardar los cambios. Inténtalo nuevamente.');
+      });
+  };
+
+  const ensureElements = () => {
+    if (container) {
+      return;
+    }
+
+    container = document.createElement('div');
+    container.className = 'venue-editor';
+    container.setAttribute('role', 'dialog');
+    container.setAttribute('aria-modal', 'true');
+    container.setAttribute('aria-hidden', 'true');
+    container.setAttribute('aria-labelledby', 'venue-editor-title');
+    container.setAttribute('aria-describedby', 'venue-editor-subtitle');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'venue-editor__backdrop';
+
+    dialog = document.createElement('div');
+    dialog.className = 'venue-editor__dialog';
+    dialog.setAttribute('role', 'document');
+
+    const header = document.createElement('header');
+    header.className = 'venue-editor__header';
+
+    titleElement = document.createElement('h3');
+    titleElement.className = 'venue-editor__title';
+    titleElement.id = 'venue-editor-title';
+    titleElement.textContent = 'Editar lugar';
+
+    subtitleElement = document.createElement('p');
+    subtitleElement.className = 'venue-editor__subtitle';
+    subtitleElement.id = 'venue-editor-subtitle';
+    subtitleElement.textContent = '';
+
+    const titleWrapper = document.createElement('div');
+    titleWrapper.className = 'venue-editor__titles';
+    titleWrapper.append(titleElement, subtitleElement);
+
+    closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'venue-editor__close';
+    closeButton.textContent = 'Cerrar';
+
+    header.append(titleWrapper, closeButton);
+
+    form = document.createElement('form');
+    form.className = 'venue-editor__form';
+    form.setAttribute('autocomplete', 'off');
+    form.setAttribute('aria-labelledby', 'venue-editor-title venue-editor-subtitle');
+    form.noValidate = true;
+
+    const fieldsWrapper = document.createElement('div');
+    fieldsWrapper.className = 'venue-editor__fields';
+
+    const createField = (id, labelText, control) => {
+      const field = document.createElement('div');
+      field.className = 'venue-editor__field form-field';
+
+      const label = document.createElement('label');
+      label.className = 'form-label';
+      label.setAttribute('for', id);
+      label.textContent = labelText;
+
+      control.id = id;
+      control.classList.add('form-control');
+
+      field.append(label, control);
+      return { field, control };
+    };
+
+    const nameField = createField('venue-editor-name', 'Nombre', document.createElement('input'));
+    nameField.control.type = 'text';
+    nameField.control.required = true;
+    nameField.field.classList.add('venue-editor__field--full', 'form-field--full');
+    fieldsWrapper.append(nameField.field);
+
+    const addressField = createField(
+      'venue-editor-address',
+      'Dirección',
+      document.createElement('input'),
+    );
+    addressField.control.type = 'text';
+    fieldsWrapper.append(addressField.field);
+
+    const mapsField = createField('venue-editor-maps', 'Enlace a Google Maps', document.createElement('input'));
+    mapsField.control.type = 'url';
+    fieldsWrapper.append(mapsField.field);
+
+    const capacityField = createField(
+      'venue-editor-capacity',
+      'Capacidad',
+      document.createElement('input'),
+    );
+    capacityField.control.type = 'number';
+    capacityField.control.min = '0';
+    capacityField.control.step = '1';
+    capacityField.control.inputMode = 'numeric';
+    fieldsWrapper.append(capacityField.field);
+
+    const priceField = createField('venue-editor-price', 'Precio estimado', document.createElement('input'));
+    priceField.control.type = 'number';
+    priceField.control.min = '0';
+    priceField.control.step = '1';
+    priceField.control.inputMode = 'numeric';
+    fieldsWrapper.append(priceField.field);
+
+    const dateField = createField('venue-editor-date', 'Fecha disponible', document.createElement('input'));
+    dateField.control.type = 'date';
+    fieldsWrapper.append(dateField.field);
+
+    const contactField = createField(
+      'venue-editor-contact',
+      'Contacto',
+      document.createElement('input'),
+    );
+    contactField.control.type = 'text';
+    fieldsWrapper.append(contactField.field);
+
+    const notesControl = document.createElement('textarea');
+    notesControl.rows = 3;
+    notesControl.classList.add('form-control--textarea');
+    const notesField = createField('venue-editor-notes', 'Notas', notesControl);
+    notesField.field.classList.add('venue-editor__field--full', 'form-field--full');
+    fieldsWrapper.append(notesField.field);
+
+    const statusControl = document.createElement('select');
+    VENUE_STATUS_OPTIONS.forEach((option) => {
+      const optionElement = document.createElement('option');
+      optionElement.value = option.value;
+      optionElement.textContent = option.label;
+      statusControl.append(optionElement);
+    });
+    const statusField = createField('venue-editor-status', 'Estado', statusControl);
+    fieldsWrapper.append(statusField.field);
+
+    form.append(fieldsWrapper);
+
+    const actions = document.createElement('div');
+    actions.className = 'venue-editor__actions';
+
+    cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'button button--ghost venue-editor__cancel';
+    cancelButton.textContent = 'Cancelar';
+
+    submitButton = document.createElement('button');
+    submitButton.type = 'submit';
+    submitButton.className = 'button venue-editor__submit';
+    submitButton.textContent = 'Guardar cambios';
+
+    actions.append(cancelButton, submitButton);
+    form.append(actions);
+
+    dialog.append(header, form);
+    container.append(backdrop, dialog);
+    document.body.append(container);
+
+    fields = {
+      name: nameField.control,
+      address: addressField.control,
+      maps: mapsField.control,
+      capacity: capacityField.control,
+      price: priceField.control,
+      date: dateField.control,
+      contact: contactField.control,
+      notes: notesField.control,
+      status: statusField.control,
+    };
+
+    container.addEventListener('click', (event) => {
+      if (event.target === container && !isSaving) {
+        close();
+      }
+    });
+
+    backdrop.addEventListener('click', () => {
+      if (!isSaving) {
+        close();
+      }
+    });
+
+    closeButton.addEventListener('click', () => {
+      close();
+    });
+
+    cancelButton.addEventListener('click', () => {
+      close();
+    });
+
+    form.addEventListener('submit', handleSubmit);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && container.classList.contains('is-visible')) {
+        event.preventDefault();
+        close();
+      }
+    });
+  };
+
+  const open = (venue) => {
+    if (!venue || !venue.id) {
+      return;
+    }
+
+    ensureElements();
+
+    if (!container || !fields.name) {
+      return;
+    }
+
+    lastActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    currentVenueId = venue.id;
+
+    fields.name.value = venue.name || '';
+    if (fields.address) {
+      fields.address.value = venue.address || '';
+    }
+    if (fields.maps) {
+      fields.maps.value = venue.mapsUrl || '';
+    }
+    if (fields.capacity) {
+      fields.capacity.value =
+        typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)
+          ? String(venue.capacity)
+          : '';
+    }
+    if (fields.price) {
+      fields.price.value =
+        typeof venue.price === 'number' && Number.isFinite(venue.price)
+          ? String(venue.price)
+          : '';
+    }
+    if (fields.date) {
+      fields.date.value = normalizeVenueDateValue(venue.availableDate) || '';
+    }
+    if (fields.contact) {
+      fields.contact.value = venue.contact || '';
+    }
+    if (fields.notes) {
+      fields.notes.value = venue.notes || '';
+    }
+    if (fields.status) {
+      fields.status.value = normalizeVenueStatusValue(venue.status);
+    }
+
+    if (subtitleElement) {
+      subtitleElement.textContent = venue.name || '';
+    }
+
+    container.setAttribute('aria-hidden', 'false');
+    container.classList.add('is-visible');
+    document.body.classList.add('venue-editor-open');
+
+    if (fields.name && typeof fields.name.focus === 'function') {
+      fields.name.focus();
+    }
+  };
+
+  return { open, close };
+};
+
+const venueEditor = createVenueEditor();
+
+let venuesData = [];
+let venuesRawRecords = {};
+let stopVenuesSubscription = () => {};
+
+const defaultVenuePreferences = {
+  status: 'todas',
+  capacityMin: '',
+  capacityMax: '',
+  sort: 'recent',
+  search: '',
+  view: 'cards',
+};
+
+const loadVenuePreferences = () => {
+  try {
+    const stored = localStorage.getItem(VENUE_STORAGE_KEY);
+
+    if (!stored) {
+      return { ...defaultVenuePreferences };
+    }
+
+    const parsed = JSON.parse(stored);
+
+    return {
+      status:
+        typeof parsed.status === 'string' && parsed.status
+          ? parsed.status
+          : defaultVenuePreferences.status,
+      capacityMin:
+        typeof parsed.capacityMin === 'string' || typeof parsed.capacityMin === 'number'
+          ? String(parsed.capacityMin)
+          : defaultVenuePreferences.capacityMin,
+      capacityMax:
+        typeof parsed.capacityMax === 'string' || typeof parsed.capacityMax === 'number'
+          ? String(parsed.capacityMax)
+          : defaultVenuePreferences.capacityMax,
+      sort:
+        typeof parsed.sort === 'string' && parsed.sort
+          ? parsed.sort
+          : defaultVenuePreferences.sort,
+      search:
+        typeof parsed.search === 'string'
+          ? parsed.search
+          : defaultVenuePreferences.search,
+      view:
+        parsed.view === 'table' ? 'table' : defaultVenuePreferences.view,
+    };
+  } catch (error) {
+    console.warn('No se pudo cargar las preferencias de lugares.', error);
+    return { ...defaultVenuePreferences };
+  }
+};
+
+const venuePreferences = loadVenuePreferences();
+
+const normalizeCapacityFilterValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.max(0, Math.trunc(value)));
+  }
+
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  const parsed = Number.parseInt(trimmed, 10);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return '';
+  }
+
+  return String(parsed);
+};
+
+const venueFiltersState = {
+  status: venuePreferences.status,
+  capacityMin: normalizeCapacityFilterValue(venuePreferences.capacityMin),
+  capacityMax: normalizeCapacityFilterValue(venuePreferences.capacityMax),
+  sort: venuePreferences.sort,
+  search: venuePreferences.search,
+};
+
+let venueViewMode = venuePreferences.view === 'table' ? 'table' : 'cards';
+
+const VENUE_FILTER_STATUS_VALUES = new Set([
+  'todas',
+  ...VENUE_STATUS_OPTIONS.map((option) => option.value),
+]);
+
+if (!VENUE_FILTER_STATUS_VALUES.has(venueFiltersState.status)) {
+  venueFiltersState.status = 'todas';
+}
+
+const VENUE_SORT_KEYS = ['recent', 'price-asc', 'price-desc', 'capacity-asc', 'capacity-desc'];
+
+if (!VENUE_SORT_KEYS.includes(venueFiltersState.sort)) {
+  venueFiltersState.sort = 'recent';
+}
+
+const persistVenuePreferences = () => {
+  try {
+    const payload = {
+      status: venueFiltersState.status,
+      capacityMin: venueFiltersState.capacityMin,
+      capacityMax: venueFiltersState.capacityMax,
+      sort: venueFiltersState.sort,
+      search: venueFiltersState.search,
+      view: venueViewMode,
+    };
+
+    localStorage.setItem(VENUE_STORAGE_KEY, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('No se pudo guardar las preferencias de lugares.', error);
+  }
+};
+
+const applyVenueFilters = (items) => {
+  const statusFilter = venueFiltersState.status;
+  const minFilter = Number.parseInt(venueFiltersState.capacityMin, 10);
+  const maxFilter = Number.parseInt(venueFiltersState.capacityMax, 10);
+  const hasMin = Number.isFinite(minFilter);
+  const hasMax = Number.isFinite(maxFilter);
+  const searchTerm = venueFiltersState.search ? venueFiltersState.search.trim().toLowerCase() : '';
+
+  return items.filter((venue) => {
+    if (statusFilter && statusFilter !== 'todas' && venue.status !== statusFilter) {
+      return false;
+    }
+
+    if (hasMin) {
+      const capacity = typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)
+        ? venue.capacity
+        : null;
+
+      if (capacity === null || capacity < minFilter) {
+        return false;
+      }
+    }
+
+    if (hasMax) {
+      const capacity = typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)
+        ? venue.capacity
+        : null;
+
+      if (capacity === null || capacity > maxFilter) {
+        return false;
+      }
+    }
+
+    if (searchTerm) {
+      const nameMatch = venue.name.toLowerCase().includes(searchTerm);
+      const addressMatch = (venue.address || '').toLowerCase().includes(searchTerm);
+
+      if (!nameMatch && !addressMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
+
+const compareVenueNumeric = (first, second, direction) => {
+  const firstValue = typeof first === 'number' && Number.isFinite(first) ? first : null;
+  const secondValue = typeof second === 'number' && Number.isFinite(second) ? second : null;
+
+  if (firstValue === null && secondValue === null) {
+    return 0;
+  }
+
+  if (firstValue === null) {
+    return direction === 'asc' ? 1 : -1;
+  }
+
+  if (secondValue === null) {
+    return direction === 'asc' ? -1 : 1;
+  }
+
+  return direction === 'asc' ? firstValue - secondValue : secondValue - firstValue;
+};
+
+const sortVenues = (items, sortKey) => {
+  const list = [...items];
+
+  switch (sortKey) {
+    case 'price-asc':
+      list.sort((first, second) => compareVenueNumeric(first.price, second.price, 'asc'));
+      break;
+    case 'price-desc':
+      list.sort((first, second) => compareVenueNumeric(first.price, second.price, 'desc'));
+      break;
+    case 'capacity-asc':
+      list.sort((first, second) => compareVenueNumeric(first.capacity, second.capacity, 'asc'));
+      break;
+    case 'capacity-desc':
+      list.sort((first, second) => compareVenueNumeric(first.capacity, second.capacity, 'desc'));
+      break;
+    default:
+      list.sort((first, second) => {
+        const firstTime =
+          typeof first.updatedAt === 'number'
+            ? first.updatedAt
+            : typeof first.createdAt === 'number'
+            ? first.createdAt
+            : 0;
+        const secondTime =
+          typeof second.updatedAt === 'number'
+            ? second.updatedAt
+            : typeof second.createdAt === 'number'
+            ? second.createdAt
+            : 0;
+
+        return secondTime - firstTime;
+      });
+      break;
+  }
+
+  return list;
+};
+
+const getVisibleVenues = () => {
+  const filtered = applyVenueFilters(venuesData);
+  return sortVenues(filtered, venueFiltersState.sort);
+};
+
+const getVenueById = (venueId) => venuesData.find((venue) => venue.id === venueId) || null;
+
+const renderVenueSummary = () => {
+  const total = venuesData.length;
+  const favorites = venuesData.filter((venue) => venue.status === 'favorito').length;
+  const pending = venuesData.filter((venue) => venue.status === 'pendiente').length;
+
+  const priceValues = venuesData
+    .map((venue) => (typeof venue.price === 'number' && Number.isFinite(venue.price) ? venue.price : null))
+    .filter((value) => value !== null);
+
+  const averagePrice = priceValues.length
+    ? priceValues.reduce((sum, value) => sum + (value ?? 0), 0) / priceValues.length
+    : null;
+
+  const medianPrice = priceValues.length
+    ? (() => {
+        const sorted = priceValues.slice().sort((first, second) => first - second);
+        const middle = Math.floor(sorted.length / 2);
+
+        if (sorted.length % 2 === 0) {
+          return (sorted[middle - 1] + sorted[middle]) / 2;
+        }
+
+        return sorted[middle];
+      })()
+    : null;
+
+  if (venueSummaryElements.total) {
+    venueSummaryElements.total.textContent = String(total);
+  }
+
+  if (venueSummaryElements.favorites) {
+    venueSummaryElements.favorites.textContent = String(favorites);
+  }
+
+  if (venueSummaryElements.pending) {
+    venueSummaryElements.pending.textContent = String(pending);
+  }
+
+  if (venueSummaryElements.average) {
+    venueSummaryElements.average.textContent =
+      averagePrice !== null ? formatVenuePrice(averagePrice) || '—' : '—';
+  }
+
+  if (venueSummaryElements.median) {
+    venueSummaryElements.median.textContent =
+      medianPrice !== null ? formatVenuePrice(medianPrice) || '—' : '—';
+  }
+};
+
+const createVenueQuickField = (venue, { label, field, value, step = '1', type = 'number' }) => {
+  const wrapper = document.createElement('label');
+  wrapper.className = 'venue-card__quick-field';
+
+  const title = document.createElement('span');
+  title.textContent = label;
+  wrapper.append(title);
+
+  const input = document.createElement('input');
+  input.className = 'venue-card__quick-input';
+  input.dataset.field = field;
+  input.value = value || '';
+  input.setAttribute('aria-label', `${label} de ${venue.name}`);
+
+  if (type === 'date') {
+    input.type = 'date';
+  } else {
+    input.type = 'number';
+    input.min = '0';
+    input.step = step;
+    input.inputMode = 'numeric';
+  }
+
+  wrapper.append(input);
+  return wrapper;
+};
+
+const createVenueCard = (venue) => {
+  const card = document.createElement('article');
+  card.className = 'venue-card';
+  card.dataset.id = venue.id;
+
+  const header = document.createElement('header');
+  header.className = 'venue-card__header';
+
+  const title = document.createElement('h3');
+  title.className = 'venue-card__title';
+  title.textContent = venue.name;
+  header.append(title);
+
+  const badges = document.createElement('div');
+  badges.className = 'venue-card__badges';
+
+  const statusBadge = document.createElement('span');
+  statusBadge.className = `venue-card__badge venue-card__badge--${venue.status}`;
+  statusBadge.textContent = VENUE_STATUS_LABELS[venue.status] || venue.status;
+  badges.append(statusBadge);
+
+  if (typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)) {
+    const capacityBadge = document.createElement('span');
+    capacityBadge.className = 'venue-card__badge venue-card__badge--capacity';
+    capacityBadge.textContent = `Capacidad: ${venue.capacity}`;
+    badges.append(capacityBadge);
+  }
+
+  if (typeof venue.price === 'number' && Number.isFinite(venue.price)) {
+    const priceBadge = document.createElement('span');
+    priceBadge.className = 'venue-card__badge venue-card__badge--price';
+    priceBadge.textContent = formatVenuePrice(venue.price);
+    badges.append(priceBadge);
+  }
+
+  header.append(badges);
+  card.append(header);
+
+  const meta = document.createElement('div');
+  meta.className = 'venue-card__meta';
+
+  if (venue.address) {
+    const address = document.createElement('p');
+    address.className = 'venue-card__address';
+    address.textContent = venue.address;
+    meta.append(address);
+  }
+
+  const formattedDate = formatVenueDate(venue.availableDate);
+
+  if (formattedDate) {
+    const date = document.createElement('p');
+    date.textContent = `Próxima fecha: ${formattedDate}`;
+    meta.append(date);
+  }
+
+  if (venue.mapsUrl) {
+    const mapsButton = document.createElement('button');
+    mapsButton.type = 'button';
+    mapsButton.className = 'venue-card__button';
+    mapsButton.dataset.action = 'open-maps';
+    mapsButton.dataset.url = venue.mapsUrl;
+    mapsButton.textContent = 'Abrir en Maps';
+    meta.append(mapsButton);
+  }
+
+  if (meta.childElementCount > 0) {
+    card.append(meta);
+  }
+
+  const info = document.createElement('div');
+  info.className = 'venue-card__info';
+
+  if (venue.contact) {
+    const contact = document.createElement('p');
+    const strong = document.createElement('strong');
+    strong.textContent = 'Contacto: ';
+    contact.append(strong, document.createTextNode(venue.contact));
+    info.append(contact);
+  }
+
+  if (venue.notes) {
+    const notes = document.createElement('p');
+    notes.className = 'venue-card__notes';
+    notes.textContent = venue.notes;
+    info.append(notes);
+  }
+
+  if (info.childElementCount > 0) {
+    card.append(info);
+  }
+
+  const quick = document.createElement('div');
+  quick.className = 'venue-card__quick';
+
+  quick.append(
+    createVenueQuickField(venue, {
+      label: 'Capacidad',
+      field: 'capacity',
+      value:
+        typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)
+          ? String(venue.capacity)
+          : '',
+    }),
+  );
+
+  quick.append(
+    createVenueQuickField(venue, {
+      label: 'Precio estimado',
+      field: 'price',
+      value:
+        typeof venue.price === 'number' && Number.isFinite(venue.price)
+          ? String(venue.price)
+          : '',
+      step: '1',
+    }),
+  );
+
+  quick.append(
+    createVenueQuickField(venue, {
+      label: 'Fecha disponible',
+      field: 'availableDate',
+      value: normalizeVenueDateValue(venue.availableDate) || '',
+      type: 'date',
+    }),
+  );
+
+  card.append(quick);
+
+  const actions = document.createElement('div');
+  actions.className = 'venue-card__actions';
+
+  const statusGroup = document.createElement('div');
+  statusGroup.className = 'venue-card__status-group';
+
+  const favoriteButton = document.createElement('button');
+  favoriteButton.type = 'button';
+  favoriteButton.className = 'venue-card__button';
+  favoriteButton.dataset.action = 'toggle-favorite';
+  favoriteButton.textContent = 'Favorito';
+  if (venue.status === 'favorito') {
+    favoriteButton.classList.add('is-active');
+  }
+  statusGroup.append(favoriteButton);
+
+  const visitedButton = document.createElement('button');
+  visitedButton.type = 'button';
+  visitedButton.className = 'venue-card__button';
+  visitedButton.dataset.action = 'set-status';
+  visitedButton.dataset.status = 'visitado';
+  visitedButton.textContent = 'Visitado';
+  statusGroup.append(visitedButton);
+
+  const pendingButton = document.createElement('button');
+  pendingButton.type = 'button';
+  pendingButton.className = 'venue-card__button';
+  pendingButton.dataset.action = 'set-status';
+  pendingButton.dataset.status = 'pendiente';
+  pendingButton.textContent = 'Pendiente';
+  statusGroup.append(pendingButton);
+
+  const discardButton = document.createElement('button');
+  discardButton.type = 'button';
+  discardButton.className = 'venue-card__button venue-card__button--danger';
+  discardButton.dataset.action = 'set-status';
+  discardButton.dataset.status = 'descartado';
+  discardButton.textContent = 'Descartar';
+  statusGroup.append(discardButton);
+
+  actions.append(statusGroup);
+
+  const manageGroup = document.createElement('div');
+  manageGroup.className = 'venue-card__status-group';
+
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'venue-card__button';
+  editButton.dataset.action = 'edit';
+  editButton.textContent = 'Editar';
+  manageGroup.append(editButton);
+
+  if (venue.mapsUrl) {
+    const mapsButton = document.createElement('button');
+    mapsButton.type = 'button';
+    mapsButton.className = 'venue-card__button';
+    mapsButton.dataset.action = 'open-maps';
+    mapsButton.dataset.url = venue.mapsUrl;
+    mapsButton.textContent = 'Maps';
+    manageGroup.append(mapsButton);
+  }
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'venue-card__button venue-card__button--danger';
+  deleteButton.dataset.action = 'delete';
+  deleteButton.textContent = 'Borrar';
+  manageGroup.append(deleteButton);
+
+  actions.append(manageGroup);
+  card.append(actions);
+
+  return card;
+};
+
+const createVenueTableButton = (label, action, { status, isDanger = false, isActive = false, url } = {}) => {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'venue-table__button';
+  button.dataset.action = action;
+  if (status) {
+    button.dataset.status = status;
+  }
+  if (url) {
+    button.dataset.url = url;
+  }
+  if (isDanger) {
+    button.classList.add('venue-table__button--danger');
+  }
+  if (isActive) {
+    button.classList.add('is-active');
+  }
+  button.textContent = label;
+  return button;
+};
+
+const createVenueTableRow = (venue) => {
+  const row = document.createElement('tr');
+  row.dataset.id = venue.id;
+
+  const nameCell = document.createElement('td');
+  nameCell.className = 'venue-table__name';
+  nameCell.textContent = venue.name;
+  if (venue.address) {
+    const address = document.createElement('div');
+    address.className = 'venue-table__notes';
+    address.textContent = venue.address;
+    nameCell.append(address);
+  }
+  row.append(nameCell);
+
+  const capacityCell = document.createElement('td');
+  const capacityInput = document.createElement('input');
+  capacityInput.type = 'number';
+  capacityInput.min = '0';
+  capacityInput.step = '1';
+  capacityInput.inputMode = 'numeric';
+  capacityInput.className = 'venue-table__quick-input';
+  capacityInput.dataset.field = 'capacity';
+  capacityInput.value =
+    typeof venue.capacity === 'number' && Number.isFinite(venue.capacity)
+      ? String(venue.capacity)
+      : '';
+  capacityInput.setAttribute('aria-label', `Capacidad de ${venue.name}`);
+  capacityCell.append(capacityInput);
+  row.append(capacityCell);
+
+  const priceCell = document.createElement('td');
+  const priceInput = document.createElement('input');
+  priceInput.type = 'number';
+  priceInput.min = '0';
+  priceInput.step = '1';
+  priceInput.inputMode = 'numeric';
+  priceInput.className = 'venue-table__quick-input';
+  priceInput.dataset.field = 'price';
+  priceInput.value =
+    typeof venue.price === 'number' && Number.isFinite(venue.price)
+      ? String(venue.price)
+      : '';
+  priceInput.setAttribute('aria-label', `Precio estimado de ${venue.name}`);
+  priceCell.append(priceInput);
+  row.append(priceCell);
+
+  const statusCell = document.createElement('td');
+  const statusSelect = document.createElement('select');
+  statusSelect.className = 'venue-table__status';
+  statusSelect.dataset.action = 'status-select';
+  statusSelect.setAttribute('aria-label', `Estado de ${venue.name}`);
+  VENUE_STATUS_OPTIONS.forEach((option) => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    statusSelect.append(optionElement);
+  });
+  statusSelect.value = venue.status;
+  statusCell.append(statusSelect);
+  row.append(statusCell);
+
+  const dateCell = document.createElement('td');
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date';
+  dateInput.className = 'venue-table__quick-input';
+  dateInput.dataset.field = 'availableDate';
+  dateInput.value = normalizeVenueDateValue(venue.availableDate) || '';
+  dateInput.setAttribute('aria-label', `Fecha disponible de ${venue.name}`);
+  dateCell.append(dateInput);
+  row.append(dateCell);
+
+  const contactCell = document.createElement('td');
+  contactCell.textContent = venue.contact || '—';
+  if (venue.notes) {
+    const notes = document.createElement('div');
+    notes.className = 'venue-table__notes';
+    notes.textContent = venue.notes;
+    contactCell.append(notes);
+  }
+  row.append(contactCell);
+
+  const actionsCell = document.createElement('td');
+  actionsCell.className = 'venue-table__actions';
+
+  const favoriteButton = createVenueTableButton('Favorito', 'toggle-favorite', {
+    isActive: venue.status === 'favorito',
+  });
+
+  const visitedButton = createVenueTableButton('Visitado', 'set-status', {
+    status: 'visitado',
+  });
+
+  const pendingButton = createVenueTableButton('Pendiente', 'set-status', {
+    status: 'pendiente',
+  });
+
+  const discardButton = createVenueTableButton('Descartar', 'set-status', {
+    status: 'descartado',
+    isDanger: true,
+  });
+
+  const editButton = createVenueTableButton('Editar', 'edit');
+  const mapsButton = venue.mapsUrl
+    ? createVenueTableButton('Maps', 'open-maps', { url: venue.mapsUrl })
+    : null;
+  const deleteButton = createVenueTableButton('Borrar', 'delete', {
+    isDanger: true,
+  });
+
+  actionsCell.append(favoriteButton, visitedButton, pendingButton, discardButton, editButton);
+
+  if (mapsButton) {
+    actionsCell.append(mapsButton);
+  }
+
+  actionsCell.append(deleteButton);
+  row.append(actionsCell);
+
+  return row;
+};
+
+const renderVenueCards = (items) => {
+  if (!venuesGrid) {
+    return;
+  }
+
+  venuesGrid.innerHTML = '';
+
+  if (!items.length) {
+    const empty = document.createElement('p');
+    empty.className = 'venues-empty';
+    empty.textContent = venuesData.length
+      ? 'No hay lugares que coincidan con los filtros.'
+      : 'Añade lugares para comenzar.';
+    venuesGrid.append(empty);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  items.forEach((venue) => {
+    fragment.append(createVenueCard(venue));
+  });
+  venuesGrid.append(fragment);
+};
+
+const renderVenueTable = (items) => {
+  if (!venuesTableBody) {
+    return;
+  }
+
+  venuesTableBody.innerHTML = '';
+
+  if (!items.length) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.className = 'venue-table__empty';
+    const cell = document.createElement('td');
+    cell.colSpan = 7;
+    cell.textContent = venuesData.length
+      ? 'No hay lugares que coincidan con los filtros.'
+      : 'Añade lugares para comenzar.';
+    emptyRow.append(cell);
+    venuesTableBody.append(emptyRow);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  items.forEach((venue) => {
+    fragment.append(createVenueTableRow(venue));
+  });
+  venuesTableBody.append(fragment);
+};
+
+const updateVenueViewToggle = () => {
+  if (venueViewCardsButton) {
+    venueViewCardsButton.classList.toggle('is-active', venueViewMode === 'cards');
+  }
+
+  if (venueViewTableButton) {
+    venueViewTableButton.classList.toggle('is-active', venueViewMode === 'table');
+  }
+};
+
+const renderVenues = () => {
+  const visible = getVisibleVenues();
+  const isCardsView = venueViewMode === 'cards';
+
+  if (venuesGrid) {
+    venuesGrid.hidden = !isCardsView;
+    if (isCardsView) {
+      renderVenueCards(visible);
+    }
+  }
+
+  if (venuesTableWrapper) {
+    venuesTableWrapper.hidden = isCardsView;
+    if (!isCardsView) {
+      renderVenueTable(visible);
+    }
+  }
+};
+
+const setVenueViewMode = (nextView) => {
+  if (nextView !== 'cards' && nextView !== 'table') {
+    return;
+  }
+
+  if (venueViewMode === nextView) {
+    return;
+  }
+
+  venueViewMode = nextView;
+  updateVenueViewToggle();
+  persistVenuePreferences();
+  renderVenues();
+};
+
+const updateVenueField = (venueId, field, value) => {
+  const update = venuesStore.updateVenue(venueId, { [field]: value });
+
+  if (update && typeof update.catch === 'function') {
+    update.catch((error) => {
+      console.error('No se pudo actualizar el lugar.', error);
+      alert('No se pudo actualizar el lugar. Inténtalo nuevamente.');
+    });
+  }
+};
+
+const handleVenueQuickInputChange = (input) => {
+  const container = input.closest('[data-id]');
+
+  if (!container) {
+    return;
+  }
+
+  const venueId = container.dataset.id;
+  const field = input.dataset.field;
+
+  if (!venueId || !field) {
+    return;
+  }
+
+  let normalizedValue = null;
+  let displayValue = input.value;
+
+  if (field === 'capacity') {
+    const parsed = normalizeVenueCapacityValue(input.value);
+    normalizedValue = parsed;
+    displayValue = parsed === null ? '' : String(parsed);
+  } else if (field === 'price') {
+    const parsed = normalizeVenuePriceValue(input.value);
+    normalizedValue = parsed;
+    displayValue = parsed === null ? '' : String(parsed);
+  } else if (field === 'availableDate') {
+    const parsed = normalizeVenueDateValue(input.value);
+    normalizedValue = parsed;
+    displayValue = parsed || '';
+  } else {
+    return;
+  }
+
+  input.value = displayValue;
+  updateVenueField(venueId, field, normalizedValue);
+};
+
+const handleVenueStatusUpdate = (venueId, status) => {
+  if (!venueId || !status) {
+    return;
+  }
+
+  updateVenueField(venueId, 'status', normalizeVenueStatusValue(status));
+};
+
+const handleVenueFavoriteToggle = (venueId) => {
+  const venue = getVenueById(venueId);
+
+  if (!venue) {
+    return;
+  }
+
+  const nextStatus = venue.status === 'favorito' ? 'pendiente' : 'favorito';
+  handleVenueStatusUpdate(venueId, nextStatus);
+};
+
+const handleVenueDelete = (venueId) => {
+  if (!venueId) {
+    return;
+  }
+
+  const confirmed = window.confirm('¿Quieres eliminar este lugar?');
+
+  if (!confirmed) {
+    return;
+  }
+
+  const removal = venuesStore.deleteVenue(venueId);
+
+  if (removal && typeof removal.catch === 'function') {
+    removal.catch((error) => {
+      console.error('No se pudo eliminar el lugar.', error);
+      alert('No se pudo eliminar el lugar. Inténtalo nuevamente.');
+    });
+  }
+};
+
+const handleVenueExport = () => {
+  const visible = getVisibleVenues();
+  const appliedFilters = {
+    status: venueFiltersState.status,
+    capacityMin: venueFiltersState.capacityMin,
+    capacityMax: venueFiltersState.capacityMax,
+    sort: venueFiltersState.sort,
+    search: venueFiltersState.search,
+  };
+
+  const exportAction = venuesStore.exportCSV(
+    visible.map((venue) => ({ ...venue })),
+    appliedFilters,
+  );
+
+  if (!exportAction || typeof exportAction.then !== 'function') {
+    return;
+  }
+
+  exportAction
+    .then((csv) => {
+      if (!csv) {
+        alert('No hay datos para exportar todavía.');
+        return;
+      }
+
+      const filename = `lugares-${new Date().toISOString().slice(0, 10)}.csv`;
+      downloadCsv(csv, filename);
+    })
+    .catch((error) => {
+      console.error('No se pudo exportar los lugares.', error);
+      alert('No se pudo exportar los lugares. Inténtalo nuevamente.');
+    });
+};
+
+const handleVenueFormSubmit = (event) => {
+  event.preventDefault();
+
+  if (!venueForm) {
+    return;
+  }
+
+  const payload = {
+    name: venueNameInput ? venueNameInput.value : '',
+    address: venueAddressInput ? venueAddressInput.value : '',
+    mapsUrl: venueMapsInput ? sanitizeVenueUrl(venueMapsInput.value) : '',
+    capacity: venueCapacityInput ? venueCapacityInput.value : '',
+    price: venuePriceInput ? venuePriceInput.value : '',
+    availableDate: venueDateInput ? venueDateInput.value : '',
+    contact: venueContactInput ? venueContactInput.value : '',
+    notes: venueNotesInput ? venueNotesInput.value : '',
+    status: venueStatusSelect ? venueStatusSelect.value : VENUE_DEFAULT_STATUS,
+  };
+
+  const addition = venuesStore.addVenue(payload);
+
+  venueForm.reset();
+
+  if (venueStatusSelect) {
+    venueStatusSelect.value = VENUE_DEFAULT_STATUS;
+  }
+
+  if (venueNameInput) {
+    venueNameInput.focus();
+  }
+
+  if (addition && typeof addition.catch === 'function') {
+    addition.catch((error) => {
+      console.error('No se pudo guardar el lugar.', error);
+      alert('No se pudo guardar el lugar. Revisa tu conexión e inténtalo nuevamente.');
+    });
+  }
+};
+
+const handleVenueCardChange = (event) => {
+  const target = event.target instanceof HTMLInputElement ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  if (target.matches('.venue-card__quick-input')) {
+    handleVenueQuickInputChange(target);
+  }
+};
+
+const handleVenueCardClick = (event) => {
+  const target = event.target instanceof HTMLElement ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  const actionButton = target.closest('[data-action]');
+
+  if (!actionButton) {
+    return;
+  }
+
+  const card = actionButton.closest('.venue-card');
+
+  if (!card) {
+    return;
+  }
+
+  const venueId = card.dataset.id;
+
+  if (!venueId) {
+    return;
+  }
+
+  const action = actionButton.dataset.action;
+
+  if (action === 'toggle-favorite') {
+    handleVenueFavoriteToggle(venueId);
+    return;
+  }
+
+  if (action === 'set-status') {
+    handleVenueStatusUpdate(venueId, actionButton.dataset.status || '');
+    return;
+  }
+
+  if (action === 'delete') {
+    handleVenueDelete(venueId);
+    return;
+  }
+
+  if (action === 'open-maps') {
+    const venue = getVenueById(venueId);
+    const url = actionButton.dataset.url || (venue ? venue.mapsUrl : '');
+
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    return;
+  }
+
+  if (action === 'edit') {
+    const venue = getVenueById(venueId);
+
+    if (venue) {
+      venueEditor.open(venue);
+    }
+  }
+};
+
+const handleVenueTableChange = (event) => {
+  const target = event.target;
+
+  if (target instanceof HTMLInputElement && target.matches('.venue-table__quick-input')) {
+    handleVenueQuickInputChange(target);
+    return;
+  }
+
+  if (target instanceof HTMLSelectElement && target.matches('.venue-table__status')) {
+    const row = target.closest('tr');
+
+    if (!row) {
+      return;
+    }
+
+    const venueId = row.dataset.id;
+
+    if (!venueId) {
+      return;
+    }
+
+    handleVenueStatusUpdate(venueId, target.value);
+  }
+};
+
+const handleVenueTableClick = (event) => {
+  const target = event.target instanceof HTMLElement ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  const actionButton = target.closest('[data-action]');
+
+  if (!actionButton) {
+    return;
+  }
+
+  const row = actionButton.closest('tr');
+
+  if (!row) {
+    return;
+  }
+
+  const venueId = row.dataset.id;
+
+  if (!venueId) {
+    return;
+  }
+
+  const action = actionButton.dataset.action;
+
+  if (action === 'toggle-favorite') {
+    handleVenueFavoriteToggle(venueId);
+    return;
+  }
+
+  if (action === 'set-status') {
+    handleVenueStatusUpdate(venueId, actionButton.dataset.status || '');
+    return;
+  }
+
+  if (action === 'delete') {
+    handleVenueDelete(venueId);
+    return;
+  }
+
+  if (action === 'open-maps') {
+    const venue = getVenueById(venueId);
+    const url = actionButton.dataset.url || (venue ? venue.mapsUrl : '');
+
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+
+    return;
+  }
+
+  if (action === 'edit') {
+    const venue = getVenueById(venueId);
+
+    if (venue) {
+      venueEditor.open(venue);
+    }
+  }
+};
+
+const initializeVenuesSection = () => {
+  if (!venuesGrid || !venuesTableWrapper) {
+    return;
+  }
+
+  if (venueForm) {
+    venueForm.addEventListener('submit', handleVenueFormSubmit);
+  }
+
+  const updateAndRender = () => {
+    persistVenuePreferences();
+    renderVenues();
+  };
+
+  if (venueStatusFilter) {
+    const initialStatus = VENUE_FILTER_STATUS_VALUES.has(venueFiltersState.status)
+      ? venueFiltersState.status
+      : 'todas';
+    venueFiltersState.status = initialStatus;
+    venueStatusFilter.value = initialStatus;
+
+    venueStatusFilter.addEventListener('change', (event) => {
+      const value = event.target.value;
+      venueFiltersState.status = VENUE_FILTER_STATUS_VALUES.has(value)
+        ? value
+        : 'todas';
+      venueStatusFilter.value = venueFiltersState.status;
+      updateAndRender();
+    });
+  }
+
+  const handleCapacityFilter = (input, key) => {
+    if (!input) {
+      return;
+    }
+
+    const initialValue = normalizeCapacityFilterValue(venueFiltersState[key]);
+    venueFiltersState[key] = initialValue;
+    input.value = initialValue;
+
+    input.addEventListener('input', (event) => {
+      const rawValue = typeof event.target.value === 'string' ? event.target.value : '';
+      const normalized = normalizeCapacityFilterValue(rawValue);
+
+      if (event.target.value !== normalized) {
+        event.target.value = normalized;
+      }
+
+      venueFiltersState[key] = normalized;
+      updateAndRender();
+    });
+  };
+
+  handleCapacityFilter(venueCapacityMinInput, 'capacityMin');
+  handleCapacityFilter(venueCapacityMaxInput, 'capacityMax');
+
+  if (venueSortSelect) {
+    const initialSort = VENUE_SORT_KEYS.includes(venueFiltersState.sort)
+      ? venueFiltersState.sort
+      : 'recent';
+    venueFiltersState.sort = initialSort;
+    venueSortSelect.value = initialSort;
+
+    venueSortSelect.addEventListener('change', (event) => {
+      const value = event.target.value;
+      venueFiltersState.sort = VENUE_SORT_KEYS.includes(value) ? value : 'recent';
+      venueSortSelect.value = venueFiltersState.sort;
+      updateAndRender();
+    });
+  }
+
+  if (venueSearchInput) {
+    venueSearchInput.value = venueFiltersState.search || '';
+
+    venueSearchInput.addEventListener('input', (event) => {
+      const value = typeof event.target.value === 'string' ? event.target.value : '';
+      venueFiltersState.search = value;
+      updateAndRender();
+    });
+  }
+
+  if (venueViewCardsButton) {
+    venueViewCardsButton.addEventListener('click', () => {
+      setVenueViewMode('cards');
+    });
+  }
+
+  if (venueViewTableButton) {
+    venueViewTableButton.addEventListener('click', () => {
+      setVenueViewMode('table');
+    });
+  }
+
+  updateVenueViewToggle();
+
+  if (venueExportButton) {
+    venueExportButton.addEventListener('click', handleVenueExport);
+  }
+
+  venuesGrid.addEventListener('change', handleVenueCardChange);
+  venuesGrid.addEventListener('click', handleVenueCardClick);
+
+  if (venuesTableBody) {
+    venuesTableBody.addEventListener('change', handleVenueTableChange);
+    venuesTableBody.addEventListener('click', handleVenueTableClick);
+  }
+
+  stopVenuesSubscription();
+  stopVenuesSubscription = venuesStore.subscribe(({ venues, raw }) => {
+    venuesData = venues;
+    venuesRawRecords = raw;
+    renderVenueSummary();
+    renderVenues();
+  });
+
+  venuesStore.init();
+
+  renderVenueSummary();
+  renderVenues();
+
+  return stopVenuesSubscription;
+};
+
 // Presupuesto
 const budgetTargetForm = document.getElementById('budget-target-form');
 const budgetTargetInput = document.getElementById('budget-target');
@@ -2827,10 +4787,18 @@ const initializeAppState = async () => {
 initializeAppState();
 initializeGuestSection();
 initializeIdeasSection();
+initializeVenuesSection();
 initializeBudgetSection();
 selectTab('checklist');
 
 window.addEventListener('beforeunload', () => {
+  try {
+    stopVenuesSubscription();
+  } catch (error) {
+    console.warn('No se pudo detener la suscripción de lugares.', error);
+  }
+
+  venuesStore.destroy();
   guestsStore.destroy();
   ideasStore.destroy();
   budgetStore.destroy();
