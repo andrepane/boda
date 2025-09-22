@@ -71,21 +71,48 @@
               <header class="panel__header">
                 <h2 class="panel__title">Checklist del gran dia</h2>
                 <p class="panel__subtitle">
-                  Anade tareas, marca lo completado y mantente al tanto de los pendientes.
+                  Añade tareas, marca lo completado y mantente al tanto de los pendientes.
                 </p>
               </header>
 
               <form class="checklist__form" id="task-form" autocomplete="off">
-                <label class="sr-only" for="task-input">Nueva tarea</label>
-                <input
-                  id="task-input"
-                  class="checklist__input"
-                  type="text"
-                  placeholder="Anadir tarea"
-                  required
-                />
+                <div class="checklist__field checklist__field--full">
+                  <label class="checklist__label" for="task-input">Tarea</label>
+                  <input
+                    id="task-input"
+                    class="checklist__control"
+                    type="text"
+                    placeholder="Describe la tarea"
+                    required
+                  />
+                </div>
 
-                <button class="button" type="submit">Agregar</button>
+                <div class="checklist__field">
+                  <label class="checklist__label" for="task-category">Categoría</label>
+                  <select id="task-category" class="checklist__control" required>
+                    <option value="invitados">Invitados</option>
+                    <option value="decoracion">Decoración</option>
+                    <option value="catering">Catering</option>
+                    <option value="musica">Música</option>
+                    <option value="viaje">Viaje de novios</option>
+                  </select>
+                </div>
+
+                <div class="checklist__field">
+                  <label class="checklist__label" for="task-priority">Prioridad</label>
+                  <select id="task-priority" class="checklist__control" required>
+                    <option value="alta">Alta</option>
+                    <option value="media" selected>Media</option>
+                    <option value="baja">Baja</option>
+                  </select>
+                </div>
+
+                <div class="checklist__field">
+                  <label class="checklist__label" for="task-deadline">Fecha límite</label>
+                  <input id="task-deadline" class="checklist__control" type="date" required />
+                </div>
+
+                <button class="button checklist__submit" type="submit">Agregar</button>
               </form>
 
               <div class="checklist__summary" aria-live="polite">
@@ -96,6 +123,23 @@
                 <div class="summary__item">
                   <span class="summary__label">Total</span>
                   <strong id="total-count" class="summary__value">0</strong>
+                </div>
+                <div class="checklist__progress">
+                  <div class="progress__header">
+                    <span class="summary__label">Progreso</span>
+                    <strong id="progress-value" class="summary__value">0%</strong>
+                  </div>
+                  <div
+                    id="progress-bar"
+                    class="progress__bar"
+                    role="progressbar"
+                    aria-label="Progreso de la checklist"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow="0"
+                  >
+                    <div id="progress-fill" class="progress__fill"></div>
+                  </div>
                 </div>
               </div>
 
@@ -128,7 +172,7 @@
                 <article class="gallery__card">
                   <h3 class="gallery__title">Lista de deseos</h3>
                   <p class="gallery__text">
-                    Anade referencias para recuerdos, detalles de mesas o sorpresas para invitados.
+                    Añade referencias para recuerdos, detalles de mesas o sorpresas para invitados.
                   </p>
                 </article>
               </div>
