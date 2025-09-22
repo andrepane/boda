@@ -396,6 +396,220 @@ const isSyncDisabledError = (error) =>
         error.code === 'unavailable'),
   );
 
+const MILESTONE_STATUS_OPTIONS = [
+  { value: 'planned', label: 'Planificado' },
+  { value: 'in-progress', label: 'En curso' },
+  { value: 'done', label: 'Completado' },
+];
+
+const MILESTONE_STATUS_DEFAULT = MILESTONE_STATUS_OPTIONS[0].value;
+
+const MILESTONE_STATUS_LABELS = MILESTONE_STATUS_OPTIONS.reduce((labels, option) => {
+  labels[option.value] = option.label;
+  return labels;
+}, {});
+
+const MILESTONE_REMINDER_OPTIONS = [
+  { value: 'none', label: 'Sin recordatorio' },
+  { value: '1w', label: 'Una semana antes' },
+  { value: '3d', label: 'Tres días antes' },
+  { value: '1d', label: 'Un día antes' },
+];
+
+const MILESTONE_REMINDER_DEFAULT = MILESTONE_REMINDER_OPTIONS[0].value;
+
+const isValidMilestoneStatus = (value) =>
+  MILESTONE_STATUS_OPTIONS.some((option) => option.value === value);
+
+const isValidMilestoneReminder = (value) =>
+  MILESTONE_REMINDER_OPTIONS.some((option) => option.value === value);
+
+const normalizeResponsibles = (value) => {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => (typeof item === 'string' ? item.trim() : ''))
+      .filter((item) => Boolean(item));
+  }
+
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter((item) => Boolean(item));
+};
+
+const normalizeMilestoneDate = (value) => normalizeDueDate(value);
+
+const normalizeMilestone = (milestone) => {
+  if (!milestone || typeof milestone !== 'object') {
+    return null;
+  }
+
+  const title = typeof milestone.title === 'string' ? milestone.title.trim() : '';
+
+  if (!title) {
+    return null;
+  }
+
+  const baseId =
+    typeof milestone.id === 'string' && milestone.id
+      ? milestone.id
+      : typeof milestone.id === 'number'
+      ? milestone.id.toString()
+      : '';
+
+  const id = baseId || createId();
+  const date = normalizeMilestoneDate(milestone.date);
+  const status = isValidMilestoneStatus(milestone.status)
+    ? milestone.status
+    : MILESTONE_STATUS_DEFAULT;
+  const responsibles = normalizeResponsibles(milestone.responsibles);
+  const reminder = isValidMilestoneReminder(milestone.reminder)
+    ? milestone.reminder
+    : MILESTONE_REMINDER_DEFAULT;
+
+  const createdAt = toTimestamp(milestone.createdAt);
+  const updatedAt = toTimestamp(milestone.updatedAt);
+
+  return {
+    id,
+    title,
+    date,
+    status,
+    responsibles,
+    reminder,
+    notes: typeof milestone.notes === 'string' ? milestone.notes : '',
+    createdAt: createdAt ?? null,
+    updatedAt: updatedAt ?? null,
+  };
+};
+
+const cloneMilestone = (milestone) => ({
+  ...milestone,
+  responsibles: Array.isArray(milestone.responsibles)
+    ? milestone.responsibles.map((value) => value)
+    : [],
+});
+
+const parseMilestoneDateToTimestamp = (value) => {
+  if (typeof value !== 'string' || !value) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map((part) => Number.parseInt(part, 10));
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day);
+  const isValidDate =
+    date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+
+  if (!isValidDate) {
+    return null;
+  }
+
+  return date.getTime();
+};
+
+const sortMilestones = (items) =>
+  [...items].sort((first, second) => {
+    const firstTime =
+      parseMilestoneDateToTimestamp(first.date) ??
+      (typeof first.createdAt === 'number' ? first.createdAt : 0);
+    const secondTime =
+      parseMilestoneDateToTimestamp(second.date) ??
+      (typeof second.createdAt === 'number' ? second.createdAt : 0);
+
+    if (firstTime !== secondTime) {
+      return firstTime - secondTime;
+    }
+
+    const firstUpdated = typeof first.updatedAt === 'number' ? first.updatedAt : 0;
+    const secondUpdated = typeof second.updatedAt === 'number' ? second.updatedAt : 0;
+
+    return firstUpdated - secondUpdated;
+  });
+
+const MILESTONE_STORAGE_KEY = 'wedding-timeline-milestones';
+
+const loadMilestones = () => {
+  try {
+    const raw = localStorage.getItem(MILESTONE_STORAGE_KEY);
+
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.map((milestone) => normalizeMilestone(milestone)).filter(Boolean);
+  } catch (error) {
+    console.warn('No se pudo cargar el cronograma de localStorage.', error);
+    return [];
+  }
+};
+
+const saveMilestones = (milestones) => {
+  try {
+    localStorage.setItem(MILESTONE_STORAGE_KEY, JSON.stringify(milestones));
+  } catch (error) {
+    console.warn('No se pudo guardar el cronograma en localStorage.', error);
+  }
+};
+
+const mapRemoteSnapshotToMilestones = (records) => {
+  if (!records || typeof records !== 'object') {
+    return [];
+  }
+
+  return Object.entries(records)
+    .map(([id, value]) => normalizeMilestone({ ...value, id }))
+    .filter((milestone) => milestone !== null);
+};
+
+const createMilestonesController = (syncInstance = getFirebaseSync()) => {
+  const sync = syncInstance;
+
+  if (
+    !sync ||
+    typeof sync.listenMilestones !== 'function' ||
+    typeof sync.addMilestone !== 'function' ||
+    typeof sync.updateMilestone !== 'function' ||
+    typeof sync.deleteMilestone !== 'function'
+  ) {
+    return null;
+  }
+
+  return {
+    listen(onMilestones) {
+      const unsubscribe = sync.listenMilestones((records) => {
+        const milestones = mapRemoteSnapshotToMilestones(records);
+        onMilestones(milestones);
+      });
+
+      return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    },
+    async addMilestone(milestone) {
+      await sync.addMilestone(milestone);
+    },
+    async updateMilestone(milestoneId, changes) {
+      await sync.updateMilestone(milestoneId, changes);
+    },
+    async deleteMilestone(milestoneId) {
+      await sync.deleteMilestone(milestoneId);
+    },
+  };
+};
+
 const createTaskStore = () => {
   let currentTasks = sortTasks(loadTasks());
   const listeners = new Set();
@@ -560,7 +774,190 @@ const createTaskStore = () => {
   };
 };
 
+const createMilestonesStore = () => {
+  let currentMilestones = sortMilestones(loadMilestones());
+  const listeners = new Set();
+  let remoteController = null;
+  let stopRemoteListener = () => {};
+
+  const emit = () => {
+    const snapshot = currentMilestones.map((milestone) => cloneMilestone(milestone));
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const setMilestones = (nextMilestones, { persist = true } = {}) => {
+    currentMilestones = sortMilestones(nextMilestones).map((milestone) => cloneMilestone(milestone));
+
+    if (persist) {
+      saveMilestones(currentMilestones);
+    }
+
+    emit();
+  };
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener(currentMilestones.map((milestone) => cloneMilestone(milestone)));
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const startRemoteSync = () => {
+    if (remoteController) {
+      return true;
+    }
+
+    const controller = createMilestonesController();
+
+    if (!controller) {
+      return false;
+    }
+
+    stopRemoteListener();
+    stopRemoteListener = () => {};
+    remoteController = controller;
+
+    try {
+      const unsubscribe = controller.listen((remoteMilestones) => {
+        setMilestones(remoteMilestones);
+      });
+
+      stopRemoteListener = typeof unsubscribe === 'function' ? () => unsubscribe() : () => {};
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+
+    return true;
+  };
+
+  const init = async () => {
+    try {
+      if (startRemoteSync()) {
+        return;
+      }
+
+      await waitForFirebaseSync();
+
+      startRemoteSync();
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+  };
+
+  const addMilestone = (milestone) => {
+    const previousMilestones = currentMilestones.map((item) => cloneMilestone(item));
+
+    setMilestones([...currentMilestones, milestone]);
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.addMilestone(milestone).catch((error) => {
+      console.error('Fallo al sincronizar el hito con Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setMilestones(previousMilestones);
+      throw error;
+    });
+  };
+
+  const updateMilestone = (milestoneId, changes) => {
+    const previousMilestones = currentMilestones.map((item) => cloneMilestone(item));
+    const sanitizedChanges = { ...changes };
+    const now = Date.now();
+
+    setMilestones(
+      currentMilestones.map((milestone) =>
+        milestone.id === milestoneId ? { ...milestone, ...sanitizedChanges, updatedAt: now } : milestone,
+      ),
+    );
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController
+      .updateMilestone(milestoneId, { ...sanitizedChanges, updatedAt: now })
+      .catch((error) => {
+        console.error('Fallo al actualizar el hito en Firebase.', error);
+
+        if (isSyncDisabledError(error)) {
+          stopRemoteListener();
+          stopRemoteListener = () => {};
+          remoteController = null;
+          return;
+        }
+
+        setMilestones(previousMilestones);
+        throw error;
+      });
+  };
+
+  const deleteMilestone = (milestoneId) => {
+    const previousMilestones = currentMilestones.map((item) => cloneMilestone(item));
+
+    setMilestones(currentMilestones.filter((milestone) => milestone.id !== milestoneId));
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.deleteMilestone(milestoneId).catch((error) => {
+      console.error('Fallo al eliminar el hito en Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setMilestones(previousMilestones);
+      throw error;
+    });
+  };
+
+  const destroy = () => {
+    try {
+      stopRemoteListener();
+    } catch (error) {
+      console.warn('No se pudo detener la sincronización de hitos.', error);
+    }
+
+    stopRemoteListener = () => {};
+    remoteController = null;
+    listeners.clear();
+  };
+
+  const getSnapshot = () => currentMilestones.map((milestone) => cloneMilestone(milestone));
+
+  return {
+    subscribe,
+    init,
+    addMilestone,
+    updateMilestone,
+    deleteMilestone,
+    destroy,
+    getSnapshot,
+  };
+};
+
 let tasks = [];
+let timelineMilestones = [];
+let stopMilestonesSubscription = () => {};
 
 const renderTasks = () => {
   list.innerHTML = '';
@@ -650,6 +1047,7 @@ const renderTasks = () => {
 };
 
 const store = createTaskStore();
+const milestonesStore = createMilestonesStore();
 
 const addTask = ({ description, category, priority, dueDate }) => {
   const trimmedDescription = description.trim();
@@ -763,6 +1161,472 @@ list.addEventListener('click', (event) => {
     });
   }
 });
+
+const milestoneForm = document.getElementById('milestone-form');
+const milestoneTitleInput = document.getElementById('milestone-title');
+const milestoneDateInput = document.getElementById('milestone-date');
+const milestoneStatusSelect = document.getElementById('milestone-status');
+const milestoneResponsiblesInput = document.getElementById('milestone-responsibles');
+const milestoneReminderSelect = document.getElementById('milestone-reminder');
+const timelineList = document.getElementById('timeline-list');
+const milestoneSummaryCounters = {
+  planned: document.getElementById('milestone-planned'),
+  inProgress: document.getElementById('milestone-in-progress'),
+  done: document.getElementById('milestone-done'),
+};
+
+const formatMilestoneDate = (value) => {
+  const normalized = normalizeMilestoneDate(value);
+
+  if (!normalized) {
+    return '';
+  }
+
+  const [year, month, day] = normalized.split('-').map((part) => Number.parseInt(part, 10));
+  const date = new Date(year, month - 1, day);
+
+  return new Intl.DateTimeFormat('es-ES', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date);
+};
+
+const createTimelineItem = (milestone) => {
+  const item = document.createElement('li');
+  item.className = 'timeline__item';
+  item.dataset.id = milestone.id;
+  item.dataset.status = milestone.status;
+
+  const marker = document.createElement('div');
+  marker.className = 'timeline__marker';
+
+  const point = document.createElement('span');
+  point.className = 'timeline__point';
+  marker.append(point);
+
+  const card = document.createElement('div');
+  card.className = 'timeline__card';
+
+  const row = document.createElement('div');
+  row.className = 'timeline__row';
+
+  const dateElement = document.createElement('time');
+  dateElement.className = 'timeline__date';
+  const normalizedDate = normalizeMilestoneDate(milestone.date);
+
+  if (normalizedDate) {
+    dateElement.dateTime = normalizedDate;
+    dateElement.textContent = formatMilestoneDate(normalizedDate);
+  } else {
+    dateElement.textContent = 'Sin fecha';
+  }
+
+  row.append(dateElement);
+
+  const statusWrapper = document.createElement('div');
+  statusWrapper.className = 'timeline__status';
+
+  const statusLabel = document.createElement('span');
+  statusLabel.className = 'timeline__field-label';
+  statusLabel.textContent = 'Estado';
+
+  const statusSelect = document.createElement('select');
+  statusSelect.className = 'timeline__control timeline__status-control form-control';
+  statusSelect.setAttribute('aria-label', `Estado de ${milestone.title}`);
+  statusSelect.dataset.action = 'status';
+
+  MILESTONE_STATUS_OPTIONS.forEach((option) => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    statusSelect.append(optionElement);
+  });
+
+  statusSelect.value = isValidMilestoneStatus(milestone.status)
+    ? milestone.status
+    : MILESTONE_STATUS_DEFAULT;
+
+  statusWrapper.append(statusLabel, statusSelect);
+  row.append(statusWrapper);
+
+  const header = document.createElement('div');
+  header.className = 'timeline__header';
+
+  const title = document.createElement('h3');
+  title.className = 'timeline__title';
+  title.textContent = milestone.title;
+
+  const actions = document.createElement('div');
+  actions.className = 'timeline__actions';
+
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'button button--ghost button--compact timeline__action timeline__action--edit';
+  editButton.textContent = 'Renombrar';
+  editButton.setAttribute('aria-label', `Editar hito: ${milestone.title}`);
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'button button--ghost button--compact timeline__action timeline__action--delete';
+  deleteButton.textContent = 'Eliminar';
+  deleteButton.setAttribute('aria-label', `Eliminar hito: ${milestone.title}`);
+
+  actions.append(editButton, deleteButton);
+  header.append(title, actions);
+
+  const meta = document.createElement('div');
+  meta.className = 'timeline__meta';
+
+  const responsiblesField = document.createElement('label');
+  responsiblesField.className = 'timeline__field timeline__field--text';
+
+  const responsiblesLabel = document.createElement('span');
+  responsiblesLabel.className = 'timeline__field-label';
+  responsiblesLabel.textContent = 'Responsables';
+
+  const responsiblesInput = document.createElement('input');
+  responsiblesInput.type = 'text';
+  responsiblesInput.className = 'timeline__control timeline__responsibles form-control';
+  responsiblesInput.placeholder = 'Añade responsables';
+  responsiblesInput.value = milestone.responsibles.join(', ');
+  responsiblesInput.setAttribute('aria-label', `Responsables de ${milestone.title}`);
+  responsiblesInput.dataset.action = 'responsibles';
+
+  responsiblesField.append(responsiblesLabel, responsiblesInput);
+
+  const reminderField = document.createElement('label');
+  reminderField.className = 'timeline__field timeline__field--select';
+
+  const reminderLabel = document.createElement('span');
+  reminderLabel.className = 'timeline__field-label';
+  reminderLabel.textContent = 'Recordatorio';
+
+  const reminderSelect = document.createElement('select');
+  reminderSelect.className = 'timeline__control timeline__reminder form-control';
+  reminderSelect.setAttribute('aria-label', `Recordatorio de ${milestone.title}`);
+  reminderSelect.dataset.action = 'reminder';
+
+  MILESTONE_REMINDER_OPTIONS.forEach((option) => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    reminderSelect.append(optionElement);
+  });
+
+  reminderSelect.value = isValidMilestoneReminder(milestone.reminder)
+    ? milestone.reminder
+    : MILESTONE_REMINDER_DEFAULT;
+
+  reminderField.append(reminderLabel, reminderSelect);
+
+  meta.append(responsiblesField, reminderField);
+
+  card.append(row, header, meta);
+  item.append(marker, card);
+
+  return item;
+};
+
+const updateMilestoneSummary = (milestones = []) => {
+  const counts = { planned: 0, inProgress: 0, done: 0 };
+
+  milestones.forEach((milestone) => {
+    if (milestone.status === 'done') {
+      counts.done += 1;
+    } else if (milestone.status === 'in-progress') {
+      counts.inProgress += 1;
+    } else {
+      counts.planned += 1;
+    }
+  });
+
+  if (milestoneSummaryCounters.planned) {
+    milestoneSummaryCounters.planned.textContent = String(counts.planned);
+  }
+
+  if (milestoneSummaryCounters.inProgress) {
+    milestoneSummaryCounters.inProgress.textContent = String(counts.inProgress);
+  }
+
+  if (milestoneSummaryCounters.done) {
+    milestoneSummaryCounters.done.textContent = String(counts.done);
+  }
+};
+
+const renderTimeline = () => {
+  if (!timelineList) {
+    return;
+  }
+
+  timelineList.innerHTML = '';
+
+  if (!timelineMilestones.length) {
+    const empty = document.createElement('li');
+    empty.className = 'timeline__empty';
+    empty.textContent = 'Agrega tu primer hito para visualizar la línea temporal.';
+    timelineList.append(empty);
+    updateMilestoneSummary([]);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  timelineMilestones.forEach((milestone) => {
+    fragment.append(createTimelineItem(milestone));
+  });
+
+  timelineList.append(fragment);
+  updateMilestoneSummary(timelineMilestones);
+};
+
+const handleMilestoneSubmit = (event) => {
+  event.preventDefault();
+
+  if (!milestoneForm) {
+    return;
+  }
+
+  const titleValue = milestoneTitleInput ? milestoneTitleInput.value.trim() : '';
+
+  if (!titleValue) {
+    if (milestoneTitleInput) {
+      milestoneTitleInput.focus();
+    }
+    return;
+  }
+
+  const dateValue = milestoneDateInput ? milestoneDateInput.value : '';
+  const normalizedDate = normalizeMilestoneDate(dateValue);
+
+  if (!normalizedDate) {
+    alert('Selecciona una fecha válida para el hito.');
+    if (milestoneDateInput) {
+      milestoneDateInput.focus();
+    }
+    return;
+  }
+
+  const statusValue =
+    milestoneStatusSelect && isValidMilestoneStatus(milestoneStatusSelect.value)
+      ? milestoneStatusSelect.value
+      : MILESTONE_STATUS_DEFAULT;
+
+  const responsiblesValue = normalizeResponsibles(
+    milestoneResponsiblesInput ? milestoneResponsiblesInput.value : '',
+  );
+
+  const reminderValue =
+    milestoneReminderSelect && isValidMilestoneReminder(milestoneReminderSelect.value)
+      ? milestoneReminderSelect.value
+      : MILESTONE_REMINDER_DEFAULT;
+
+  const now = Date.now();
+
+  const submission = milestonesStore.addMilestone({
+    id: createId(),
+    title: titleValue,
+    date: normalizedDate,
+    status: statusValue,
+    responsibles: responsiblesValue,
+    reminder: reminderValue,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  milestoneForm.reset();
+
+  if (milestoneStatusSelect) {
+    milestoneStatusSelect.value = MILESTONE_STATUS_DEFAULT;
+  }
+
+  if (milestoneReminderSelect) {
+    milestoneReminderSelect.value = MILESTONE_REMINDER_DEFAULT;
+  }
+
+  if (milestoneTitleInput) {
+    milestoneTitleInput.focus();
+  }
+
+  if (submission && typeof submission.catch === 'function') {
+    submission.catch((error) => {
+      console.error('No se pudo guardar el hito.', error);
+      alert('No se pudo guardar el hito. Revisa tu conexión e inténtalo nuevamente.');
+    });
+  }
+};
+
+const handleTimelineChange = (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const item = target.closest('.timeline__item');
+
+  if (!item) {
+    return;
+  }
+
+  const milestoneId = item.dataset.id;
+
+  if (!milestoneId) {
+    return;
+  }
+
+  const current = timelineMilestones.find((milestone) => milestone.id === milestoneId) || null;
+
+  if (target.matches('.timeline__status-control')) {
+    const nextStatus = isValidMilestoneStatus(target.value)
+      ? target.value
+      : MILESTONE_STATUS_DEFAULT;
+
+    if (nextStatus !== target.value) {
+      target.value = nextStatus;
+    }
+
+    const update = milestonesStore.updateMilestone(milestoneId, { status: nextStatus });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar el estado del hito.', error);
+        alert('No se pudo actualizar el hito. Revisa tu conexión e inténtalo nuevamente.');
+        if (current) {
+          target.value = current.status;
+        }
+      });
+    }
+
+    return;
+  }
+
+  if (target.matches('.timeline__responsibles')) {
+    const responsibles = normalizeResponsibles(target.value);
+    const update = milestonesStore.updateMilestone(milestoneId, { responsibles });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar los responsables del hito.', error);
+        alert('No se pudo actualizar el hito. Revisa tu conexión e inténtalo nuevamente.');
+        if (current) {
+          target.value = current.responsibles.join(', ');
+        }
+      });
+    }
+
+    return;
+  }
+
+  if (target.matches('.timeline__reminder')) {
+    const nextReminder = isValidMilestoneReminder(target.value)
+      ? target.value
+      : MILESTONE_REMINDER_DEFAULT;
+
+    if (nextReminder !== target.value) {
+      target.value = nextReminder;
+    }
+
+    const update = milestonesStore.updateMilestone(milestoneId, { reminder: nextReminder });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar el recordatorio del hito.', error);
+        alert('No se pudo actualizar el hito. Revisa tu conexión e inténtalo nuevamente.');
+        if (current) {
+          target.value = current.reminder;
+        }
+      });
+    }
+  }
+};
+
+const handleTimelineClick = (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const item = target.closest('.timeline__item');
+
+  if (!item) {
+    return;
+  }
+
+  const milestoneId = item.dataset.id;
+
+  if (!milestoneId) {
+    return;
+  }
+
+  const current = timelineMilestones.find((milestone) => milestone.id === milestoneId) || null;
+
+  if (target.matches('.timeline__action--delete')) {
+    if (!window.confirm('¿Deseas eliminar este hito?')) {
+      return;
+    }
+
+    const removal = milestonesStore.deleteMilestone(milestoneId);
+
+    if (removal && typeof removal.catch === 'function') {
+      removal.catch((error) => {
+        console.error('No se pudo eliminar el hito.', error);
+        alert('No se pudo eliminar el hito. Revisa tu conexión e inténtalo nuevamente.');
+      });
+    }
+
+    return;
+  }
+
+  if (target.matches('.timeline__action--edit')) {
+    const currentTitle = current ? current.title : '';
+    const nextTitle = window.prompt('Editar hito', currentTitle);
+
+    if (nextTitle === null) {
+      return;
+    }
+
+    const trimmed = nextTitle.trim();
+
+    if (!trimmed) {
+      alert('El título no puede quedar vacío.');
+      return;
+    }
+
+    const update = milestonesStore.updateMilestone(milestoneId, { title: trimmed });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar el hito.', error);
+        alert('No se pudo actualizar el hito. Revisa tu conexión e inténtalo nuevamente.');
+      });
+    }
+  }
+};
+
+const initializeTimelineSection = () => {
+  if (!milestoneForm || !timelineList) {
+    return;
+  }
+
+  stopMilestonesSubscription();
+
+  stopMilestonesSubscription = milestonesStore.subscribe((nextMilestones) => {
+    timelineMilestones = nextMilestones;
+    renderTimeline();
+  });
+
+  milestonesStore
+    .init()
+    .catch((error) => {
+      console.warn('No se pudo iniciar la sincronización del cronograma.', error);
+    });
+
+  milestoneForm.addEventListener('submit', handleMilestoneSubmit);
+  timelineList.addEventListener('change', handleTimelineChange);
+  timelineList.addEventListener('click', handleTimelineClick);
+};
 
 const sanitizeEntityText = (value) =>
   typeof value === 'string' ? value.trim() : '';
@@ -4785,6 +5649,7 @@ const initializeAppState = async () => {
 };
 
 initializeAppState();
+initializeTimelineSection();
 initializeGuestSection();
 initializeIdeasSection();
 initializeVenuesSection();
@@ -4798,6 +5663,13 @@ window.addEventListener('beforeunload', () => {
     console.warn('No se pudo detener la suscripción de lugares.', error);
   }
 
+  try {
+    stopMilestonesSubscription();
+  } catch (error) {
+    console.warn('No se pudo detener la suscripción de hitos.', error);
+  }
+
+  milestonesStore.destroy();
   venuesStore.destroy();
   guestsStore.destroy();
   ideasStore.destroy();
