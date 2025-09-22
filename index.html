@@ -10,11 +10,14 @@
     <div class="app-shell">
       <div class="app">
         <header class="app__header">
-          <div class="app__header-top">
-            <div class="app__heading">
-              <span class="app__badge" aria-hidden="true">Si, acepto!</span>
-              <h1 class="app__title">Nuestra boda</h1>
-              <p class="app__subtitle">Planifiquemos cada detalle con carino.</p>
+          <div class="hero">
+            <div class="hero__accent"></div>
+            <div class="hero__content">
+              <span class="hero__badge" aria-hidden="true">Cuenta atras</span>
+              <h1 class="hero__title">Nuestra boda</h1>
+              <p class="hero__subtitle">
+                Un lugar para coordinar ideas, invitados y presupuesto con calma y estilo.
+              </p>
             </div>
           </div>
 
@@ -64,191 +67,119 @@
 
         <main class="app__content">
           <section id="checklist" class="tab-content is-active" role="tabpanel" aria-labelledby="checklist-tab">
-            <div class="progress" aria-live="polite">
-              <div class="progress__labels">
-                <span class="progress__title">Progreso</span>
-                <span id="progress-percentage" class="progress__value">0%</span>
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Checklist del gran dia</h2>
+                <p class="panel__subtitle">
+                  Anade tareas, marca lo completado y mantente al tanto de los pendientes.
+                </p>
+              </header>
+
+              <form class="checklist__form" id="task-form" autocomplete="off">
+                <label class="sr-only" for="task-input">Nueva tarea</label>
+                <input
+                  id="task-input"
+                  class="checklist__input"
+                  type="text"
+                  placeholder="Anadir tarea"
+                  required
+                />
+
+                <button class="button" type="submit">Agregar</button>
+              </form>
+
+              <div class="checklist__summary" aria-live="polite">
+                <div class="summary__item">
+                  <span class="summary__label">Pendientes</span>
+                  <strong id="pending-count" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Total</span>
+                  <strong id="total-count" class="summary__value">0</strong>
+                </div>
               </div>
-              <div
-                id="progress-bar"
-                class="progress__bar"
-                role="progressbar"
-                aria-labelledby="checklist-tab"
-                aria-valuemin="0"
-                aria-valuemax="100"
-                aria-valuenow="0"
-              >
-                <div id="progress-fill" class="progress__fill" style="width: 0%"></div>
-              </div>
+
+              <ul class="checklist__list" id="task-list"></ul>
             </div>
-
-            <form class="checklist__form" id="task-form" autocomplete="off">
-              <label class="sr-only" for="task-input">Nueva tarea</label>
-              <input id="task-input" class="checklist__input" type="text" placeholder="Anadir tarea" required />
-
-              <label class="sr-only" for="task-category">Categoria</label>
-              <select id="task-category" class="checklist__select" required>
-                <option value="decoracion">Decoracion</option>
-                <option value="papeleo">Papeleo</option>
-                <option value="catering">Catering</option>
-                <option value="viaje">Viaje de novios</option>
-                <option value="anillos">Anillos</option>
-                <option value="vestimenta">Vestimenta</option>
-                <option value="ceremonia">Ceremonia</option>
-                <option value="otros">Otros</option>
-              </select>
-
-              <label class="sr-only" for="task-priority">Prioridad</label>
-              <select id="task-priority" class="checklist__select" required>
-                <option value="alta">Prioridad alta</option>
-                <option value="media">Prioridad media</option>
-                <option value="baja">Prioridad baja</option>
-              </select>
-
-              <label class="sr-only" for="task-date">Fecha limite</label>
-              <input id="task-date" class="checklist__date" type="date" required />
-
-              <button class="button" type="submit">Anadir</button>
-            </form>
-
-            <div class="checklist__summary" aria-live="polite">
-              <div class="summary__item">
-                <span class="summary__label">Pendientes</span>
-                <strong id="pending-count" class="summary__value">0</strong>
-              </div>
-              <div class="summary__item">
-                <span class="summary__label">Total</span>
-                <strong id="total-count" class="summary__value">0</strong>
-              </div>
-            </div>
-
-            <div class="checklist__groups" id="task-groups"></div>
           </section>
 
           <section id="ideas" class="tab-content" role="tabpanel" aria-labelledby="ideas-tab">
-            <div class="ideas">
-              <form class="ideas__form" id="idea-form" autocomplete="off">
-                <div class="ideas__fields">
-                  <label class="sr-only" for="idea-title">Titulo o nota</label>
-                  <input id="idea-title" class="ideas__input" type="text" placeholder="Descripcion breve" required />
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Ideas y inspiracion</h2>
+                <p class="panel__subtitle">
+                  Galeria para anotar estilos, colores y proveedores favoritos.
+                </p>
+              </header>
 
-                  <label class="sr-only" for="idea-type">Tipo</label>
-                  <select id="idea-type" class="ideas__select" required>
-                    <option value="link">Enlace</option>
-                    <option value="imagen">Imagen</option>
-                  </select>
-
-                  <label class="sr-only" for="idea-url">URL</label>
-                  <input id="idea-url" class="ideas__input" type="url" placeholder="https://" />
-
-                  <label class="sr-only" for="idea-file">Imagen de inspiracion</label>
-                  <input id="idea-file" class="ideas__file" type="file" accept="image/*" />
-                </div>
-
-                <button class="button" type="submit">Anadir inspiracion</button>
-              </form>
-
-              <div class="ideas__actions">
-                <button class="button button--ghost" type="button" id="ideas-export-csv">Exportar CSV</button>
-                <button class="button button--ghost" type="button" id="ideas-copy">Copiar lista</button>
+              <div class="gallery">
+                <article class="gallery__card">
+                  <h3 class="gallery__title">Decoracion</h3>
+                  <p class="gallery__text">
+                    Guarda links a arreglos florales, seating charts o invitaciones que te gusten.
+                  </p>
+                </article>
+                <article class="gallery__card">
+                  <h3 class="gallery__title">Momentos clave</h3>
+                  <p class="gallery__text">
+                    Escribe ideas para la ceremonia, discursos o una cancion especial para el primer baile.
+                  </p>
+                </article>
+                <article class="gallery__card">
+                  <h3 class="gallery__title">Lista de deseos</h3>
+                  <p class="gallery__text">
+                    Anade referencias para recuerdos, detalles de mesas o sorpresas para invitados.
+                  </p>
+                </article>
               </div>
-
-              <div class="ideas__gallery" id="ideas-gallery" aria-live="polite"></div>
             </div>
           </section>
 
           <section id="invitados" class="tab-content" role="tabpanel" aria-labelledby="invitados-tab">
-            <div class="guests">
-              <form class="guests__form" id="guest-form" autocomplete="off">
-                <label class="sr-only" for="guest-name">Nombre del invitado</label>
-                <input id="guest-name" class="guests__input" type="text" placeholder="Nombre del invitado" required />
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Invitados</h2>
+                <p class="panel__subtitle">
+                  Prepara una lista maestra y anota confirmaciones o necesidades especiales.
+                </p>
+              </header>
 
-                <label class="sr-only" for="guest-companion">Acompanante</label>
-                <input id="guest-companion" class="guests__input" type="text" placeholder="Acompanante (opcional)" />
-
-                <label class="guests__toggle">
-                  <input id="guest-confirmed" type="checkbox" />
-                  <span>Confirmado</span>
-                </label>
-
-                <button class="button" type="submit">Anadir invitado</button>
-              </form>
-
-              <div class="guests__summary">
-                <span>Total invitados: <strong id="guest-total">0</strong></span>
-                <span>Confirmados: <strong id="guest-confirmed-count">0</strong></span>
-              </div>
-
-              <div class="table-wrapper">
-                <table class="guests__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Nombre</th>
-                      <th scope="col">Acompanante</th>
-                      <th scope="col">Confirmado</th>
-                      <th scope="col" class="is-actions">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody id="guest-table-body"></tbody>
-                </table>
+              <div class="info-card">
+                <p class="info-card__line">Crea grupos por familias, amigos y trabajo.</p>
+                <p class="info-card__line">Marca asistentes confirmados y acompanantes.</p>
+                <p class="info-card__line">Exporta la lista para coordinar las mesas.</p>
               </div>
             </div>
           </section>
 
           <section id="presupuesto" class="tab-content" role="tabpanel" aria-labelledby="presupuesto-tab">
-            <div class="budget">
-              <form class="budget__settings" id="budget-settings" autocomplete="off">
-                <label class="budget__label" for="budget-total">Presupuesto global (EUR)</label>
-                <input id="budget-total" class="budget__input" type="number" min="0" step="0.01" placeholder="Ej. 15000" />
-                <button class="button" type="submit">Guardar presupuesto</button>
-              </form>
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Presupuesto</h2>
+                <p class="panel__subtitle">
+                  Establece tu presupuesto objetivo y controla gastos estimados y reales.
+                </p>
+              </header>
 
-              <form class="budget__form" id="budget-form" autocomplete="off">
-                <label class="sr-only" for="budget-category">Categoria</label>
-                <input id="budget-category" class="budget__input" type="text" placeholder="Categoria" required />
-
-                <label class="sr-only" for="budget-estimated">Gasto estimado</label>
-                <input id="budget-estimated" class="budget__input" type="number" min="0" step="0.01" placeholder="Estimado" required />
-
-                <label class="sr-only" for="budget-actual">Gasto real</label>
-                <input id="budget-actual" class="budget__input" type="number" min="0" step="0.01" placeholder="Real" required />
-
-                <button class="button" type="submit">Anadir gasto</button>
-              </form>
-
-              <div class="table-wrapper">
-                <table class="budget__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Categoria</th>
-                      <th scope="col">Estimado (EUR)</th>
-                      <th scope="col">Real (EUR)</th>
-                      <th scope="col" class="is-actions">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody id="budget-table-body"></tbody>
-                </table>
-              </div>
-
-              <div class="budget__summary">
-                <div class="budget__totals">
-                  <p class="budget__total">Total gastado: <strong id="budget-total-spent">0 EUR</strong></p>
-                  <p class="budget__total">Presupuesto global: <strong id="budget-total-limit">0 EUR</strong></p>
-                  <p class="budget__total">Disponible: <strong id="budget-total-remaining">0 EUR</strong></p>
-                </div>
-                <div class="budget__progress" aria-live="polite">
-                  <svg viewBox="0 0 120 120" class="budget__ring">
-                    <defs>
-                      <linearGradient id="budget-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#6f4ef6" />
-                        <stop offset="100%" stop-color="#ff8ba0" />
-                      </linearGradient>
-                    </defs>
-                    <circle class="budget__ring-bg" cx="60" cy="60" r="54"></circle>
-                    <circle id="budget-ring-fill" class="budget__ring-fill" cx="60" cy="60" r="54" stroke="url(#budget-gradient)"></circle>
-                    <text id="budget-ring-label" class="budget__ring-label" x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">0%</text>
-                  </svg>
-                </div>
+              <div class="budget-grid">
+                <article class="budget-card">
+                  <h3 class="budget-card__title">Vista general</h3>
+                  <p class="budget-card__text">
+                    Divide el presupuesto entre catering, musica, fotografia y otros rubros clave.
+                  </p>
+                </article>
+                <article class="budget-card">
+                  <h3 class="budget-card__title">Control mensual</h3>
+                  <p class="budget-card__text">
+                    Haz seguimiento de pagos y fechas limites para evitar sorpresas de ultimo momento.
+                  </p>
+                </article>
+                <article class="budget-card">
+                  <h3 class="budget-card__title">Ahorros e imprevistos</h3>
+                  <p class="budget-card__text">
+                    Reserva un porcentaje para detalles de ultima hora o mejoras de experiencia.
+                  </p>
+                </article>
               </div>
             </div>
           </section>
@@ -259,3 +190,5 @@
     <script src="app.js" defer></script>
   </body>
 </html>
+
+
