@@ -312,7 +312,10 @@ const isSyncDisabledError = (error) =>
   Boolean(
     error &&
       typeof error === 'object' &&
-      (error.message === 'SYNC_OFF' || error.code === 'SYNC_OFF'),
+      (error.message === 'SYNC_OFF' ||
+        error.code === 'SYNC_OFF' ||
+        error.code === 'auth/network-request-failed' ||
+        error.code === 'unavailable'),
   );
 
 const createTaskStore = () => {
@@ -361,39 +364,31 @@ const createTaskStore = () => {
     }
   };
 
-  const addTask = async (task) => {
-    if (remoteController) {
-      try {
-        await remoteController.addTask(task);
-        return;
-      } catch (error) {
-        console.error('Fallo al sincronizar la nueva tarea con Firebase.', error);
-
-        if (!isSyncDisabledError(error)) {
-          throw error;
-        }
-      }
-    }
+  const addTask = (task) => {
+    const previousTasks = currentTasks.map((item) => ({ ...item }));
 
     setTasks([task, ...currentTasks]);
-  };
 
-  const updateTask = async (taskId, changes) => {
-    const hasCompletionChange = Object.prototype.hasOwnProperty.call(changes, 'completed');
-
-    if (remoteController && hasCompletionChange) {
-      try {
-        await remoteController.setCompletion(taskId, Boolean(changes.completed));
-        return;
-      } catch (error) {
-        console.error('Fallo al actualizar la tarea en Firebase.', error);
-
-        if (!isSyncDisabledError(error)) {
-          throw error;
-        }
-      }
+    if (!remoteController) {
+      return Promise.resolve();
     }
 
+    return remoteController.addTask(task).catch((error) => {
+      console.error('Fallo al sincronizar la nueva tarea con Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        remoteController = null;
+        return;
+      }
+
+      setTasks(previousTasks);
+      throw error;
+    });
+  };
+
+  const updateTask = (taskId, changes) => {
+    const previousTasks = currentTasks.map((item) => ({ ...item }));
+    const hasCompletionChange = Object.prototype.hasOwnProperty.call(changes, 'completed');
     const now = Date.now();
 
     setTasks(
@@ -401,23 +396,44 @@ const createTaskStore = () => {
         task.id === taskId ? { ...task, ...changes, updatedAt: now } : task,
       ),
     );
-  };
 
-  const deleteTask = async (taskId) => {
-    if (remoteController) {
-      try {
-        await remoteController.deleteTask(taskId);
-        return;
-      } catch (error) {
-        console.error('Fallo al eliminar la tarea en Firebase.', error);
-
-        if (!isSyncDisabledError(error)) {
-          throw error;
-        }
-      }
+    if (!remoteController || !hasCompletionChange) {
+      return Promise.resolve();
     }
 
+    return remoteController.setCompletion(taskId, Boolean(changes.completed)).catch((error) => {
+      console.error('Fallo al actualizar la tarea en Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        remoteController = null;
+        return;
+      }
+
+      setTasks(previousTasks);
+      throw error;
+    });
+  };
+
+  const deleteTask = (taskId) => {
+    const previousTasks = currentTasks.map((item) => ({ ...item }));
+
     setTasks(currentTasks.filter((task) => task.id !== taskId));
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.deleteTask(taskId).catch((error) => {
+      console.error('Fallo al eliminar la tarea en Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        remoteController = null;
+        return;
+      }
+
+      setTasks(previousTasks);
+      throw error;
+    });
   };
 
   return {
@@ -520,11 +536,11 @@ const renderTasks = () => {
 
 const store = createTaskStore();
 
-const addTask = async ({ description, category, priority, dueDate }) => {
+const addTask = ({ description, category, priority, dueDate }) => {
   const trimmedDescription = description.trim();
 
   if (!trimmedDescription) {
-    return;
+    return Promise.resolve();
   }
 
   const normalizedCategory = isValidCategory(category)
@@ -534,7 +550,7 @@ const addTask = async ({ description, category, priority, dueDate }) => {
   const normalizedDueDate = normalizeDueDate(dueDate);
   const now = Date.now();
 
-  await store.addTask({
+  return store.addTask({
     id: createId(),
     description: trimmedDescription,
     category: normalizedCategory,
@@ -546,37 +562,35 @@ const addTask = async ({ description, category, priority, dueDate }) => {
   });
 };
 
-const updateTask = async (taskId, changes) => {
-  await store.updateTask(taskId, changes);
-};
+const updateTask = (taskId, changes) => store.updateTask(taskId, changes);
 
-const deleteTask = async (taskId) => {
-  await store.deleteTask(taskId);
-};
+const deleteTask = (taskId) => store.deleteTask(taskId);
 
-form.addEventListener('submit', async (event) => {
+form.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  try {
-    await addTask({
-      description: input.value,
-      category: categorySelect.value,
-      priority: prioritySelect.value,
-      dueDate: deadlineInput.value,
-    });
+  const submission = addTask({
+    description: input.value,
+    category: categorySelect.value,
+    priority: prioritySelect.value,
+    dueDate: deadlineInput.value,
+  });
 
-    form.reset();
-    categorySelect.value = CATEGORY_OPTIONS[0].value;
-    prioritySelect.value = PRIORITY_DEFAULT;
-    deadlineInput.value = '';
-    input.focus();
-  } catch (error) {
-    console.error('No se pudo guardar la tarea.', error);
-    alert('No se pudo guardar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+  form.reset();
+  categorySelect.value = CATEGORY_OPTIONS[0].value;
+  prioritySelect.value = PRIORITY_DEFAULT;
+  deadlineInput.value = '';
+  input.focus();
+
+  if (submission && typeof submission.catch === 'function') {
+    submission.catch((error) => {
+      console.error('No se pudo guardar la tarea.', error);
+      alert('No se pudo guardar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+    });
   }
 });
 
-list.addEventListener('change', async (event) => {
+list.addEventListener('change', (event) => {
   const target = event.target;
 
   if (!(target instanceof HTMLInputElement) || !target.matches('.task__checkbox')) {
@@ -595,16 +609,18 @@ list.addEventListener('change', async (event) => {
     return;
   }
 
-  try {
-    await updateTask(taskId, { completed: target.checked });
-  } catch (error) {
-    console.error('No se pudo actualizar la tarea.', error);
-    alert('No se pudo actualizar la tarea. Revisa tu conexión e inténtalo nuevamente.');
-    target.checked = !target.checked;
+  const update = updateTask(taskId, { completed: target.checked });
+
+  if (update && typeof update.catch === 'function') {
+    update.catch((error) => {
+      console.error('No se pudo actualizar la tarea.', error);
+      alert('No se pudo actualizar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+      target.checked = !target.checked;
+    });
   }
 });
 
-list.addEventListener('click', async (event) => {
+list.addEventListener('click', (event) => {
   const target = event.target;
 
   if (!(target instanceof HTMLButtonElement) || !target.matches('.task__delete')) {
@@ -623,11 +639,13 @@ list.addEventListener('click', async (event) => {
     return;
   }
 
-  try {
-    await deleteTask(taskId);
-  } catch (error) {
-    console.error('No se pudo eliminar la tarea.', error);
-    alert('No se pudo eliminar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+  const removal = deleteTask(taskId);
+
+  if (removal && typeof removal.catch === 'function') {
+    removal.catch((error) => {
+      console.error('No se pudo eliminar la tarea.', error);
+      alert('No se pudo eliminar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+    });
   }
 });
 
