@@ -994,6 +994,36 @@
       const sanitizeText = (value) =>
         typeof value === "string" ? value.trim() : typeof value === "number" ? String(value).trim() : "";
 
+      const sanitizeIdeaImage = (value) => {
+        if (typeof value !== "string") {
+          return "";
+        }
+
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+          return "";
+        }
+
+        if (trimmed.startsWith("data:image/")) {
+          return trimmed;
+        }
+
+        if (typeof URL === "function") {
+          try {
+            const parsed = new URL(trimmed);
+
+            if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+              return trimmed;
+            }
+          } catch (error) {
+            // Ignorar valores que no sean URLs válidas.
+          }
+        }
+
+        return "";
+      };
+
       const normalizePlusOnes = (value) => {
         if (typeof value === "number" && Number.isFinite(value)) {
           return Math.max(0, Math.trunc(value));
@@ -1665,10 +1695,12 @@
         }
 
         const urlValue = sanitizeText(idea?.url);
+        const imageValue = sanitizeIdeaImage(idea?.image);
 
         const payload = {
           title,
           url: urlValue || "",
+          image: imageValue || "",
           category: sanitizeText(idea?.category) || "Sin categoría",
           note: sanitizeText(idea?.note),
           likes: idea?.likes && typeof idea.likes === "object" ? idea.likes : {},
