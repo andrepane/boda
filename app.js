@@ -274,8 +274,32 @@ const mapRemoteSnapshotToTasks = (records) => {
     .filter((task) => task !== null);
 };
 
-const createFirebaseController = () => {
-  const sync = typeof window !== 'undefined' ? window.FirebaseSync : null;
+const getFirebaseSync = () =>
+  typeof window !== 'undefined' && window.FirebaseSync ? window.FirebaseSync : null;
+
+const waitForFirebaseSync = () => {
+  if (typeof window === 'undefined') {
+    return Promise.resolve(null);
+  }
+
+  const existing = getFirebaseSync();
+
+  if (existing) {
+    return Promise.resolve(existing);
+  }
+
+  return new Promise((resolve) => {
+    const handleReady = () => {
+      window.removeEventListener('firebase-sync-ready', handleReady);
+      resolve(getFirebaseSync() ?? null);
+    };
+
+    window.addEventListener('firebase-sync-ready', handleReady, { once: true });
+  });
+};
+
+const createFirebaseController = (syncInstance = getFirebaseSync()) => {
+  const sync = syncInstance;
 
   if (
     !sync ||
@@ -322,6 +346,7 @@ const createTaskStore = () => {
   let currentTasks = sortTasks(loadTasks());
   const listeners = new Set();
   let remoteController = null;
+  let stopRemoteListener = () => {};
 
   const emit = () => {
     const snapshot = currentTasks.map((task) => ({ ...task }));
@@ -347,19 +372,49 @@ const createTaskStore = () => {
     };
   };
 
-  const init = async () => {
-    remoteController = createFirebaseController();
-
-    if (!remoteController) {
-      return;
+  const startRemoteSync = () => {
+    if (remoteController) {
+      return true;
     }
 
+    const controller = createFirebaseController();
+
+    if (!controller) {
+      return false;
+    }
+
+    stopRemoteListener();
+    stopRemoteListener = () => {};
+    remoteController = controller;
+
     try {
-      remoteController.listen((remoteTasks) => {
+      const unsubscribe = controller.listen((remoteTasks) => {
         setTasks(remoteTasks);
       });
+
+      stopRemoteListener =
+        typeof unsubscribe === 'function' ? () => unsubscribe() : () => {};
     } catch (error) {
       remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+
+    return true;
+  };
+
+  const init = async () => {
+    try {
+      if (startRemoteSync()) {
+        return;
+      }
+
+      await waitForFirebaseSync();
+
+      startRemoteSync();
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
       throw error;
     }
   };
@@ -377,6 +432,8 @@ const createTaskStore = () => {
       console.error('Fallo al sincronizar la nueva tarea con Firebase.', error);
 
       if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
         remoteController = null;
         return;
       }
@@ -405,6 +462,8 @@ const createTaskStore = () => {
       console.error('Fallo al actualizar la tarea en Firebase.', error);
 
       if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
         remoteController = null;
         return;
       }
@@ -427,6 +486,8 @@ const createTaskStore = () => {
       console.error('Fallo al eliminar la tarea en Firebase.', error);
 
       if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
         remoteController = null;
         return;
       }
