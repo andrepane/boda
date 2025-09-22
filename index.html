@@ -436,6 +436,10 @@
         toggleTask,
         deleteTask,
       };
+
+      if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+        window.dispatchEvent(new Event("firebase-sync-ready"));
+      }
     </script>
 
 
