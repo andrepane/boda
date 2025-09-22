@@ -234,82 +234,209 @@
       </div>
     </div>
 
-<script>
-  // ⚠️ Rellena con TUS credenciales reales. MUY IMPORTANTE: añade también databaseURL.
-  // - databaseURL: cópiala desde Firebase → Realtime Database → pestaña "Data".
-  // - storageBucket debe acabar en .appspot.com
-  window.FIREBASE_CONFIG = {
-    apiKey: "AIzaSyCKHtBq_JjgYSy-lpnpka8jNpaW4GbMefU",
-    authDomain: "boda-f0cac.firebaseapp.com",
-    databaseURL: https://console.firebase.google.com/project/boda-f0cac/database/boda-f0cac-default-rtdb/data/~2F?hl=es-419
-    projectId: "boda-f0cac",
-    storageBucket: "boda-f0cac.appspot.com",
-    messagingSenderId: "764003731377",
-    appId: "1:764003731377:web:5dccc6fa01c0409121df90"
-    // measurementId opcional
-  };
+    <script>
+      // ⚠️ Rellena con TUS credenciales reales. MUY IMPORTANTE: añade también databaseURL.
+      // - databaseURL: cópiala desde Firebase → Realtime Database → pestaña "Data".
+      // - storageBucket debe acabar en .appspot.com
+      window.FIREBASE_CONFIG = {
+        apiKey: "AIzaSyCKHtBq_JjgYSy-lpnpka8jNpaW4GbMefU",
+        authDomain: "boda-f0cac.firebaseapp.com",
+        databaseURL: "https://boda-f0cac-default-rtdb.firebaseio.com",
+        projectId: "boda-f0cac",
+        storageBucket: "boda-f0cac.appspot.com",
+        messagingSenderId: "764003731377",
+        appId: "1:764003731377:web:5dccc6fa01c0409121df90",
+        // measurementId opcional
+      };
 
-  // Encendido / apagado de la sync remota sin tocar más código
-  window.ENABLE_SYNC = true;
+      // Encendido / apagado de la sync remota sin tocar más código
+      window.ENABLE_SYNC = true;
 
-  // Sala compartida entre vosotros
-  window.DEFAULT_ROOM_ID = "andrea-boda";
-</script>
+      // Sala compartida entre vosotros
+      window.DEFAULT_ROOM_ID = "andrea-boda";
+    </script>
 
     <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-  import { getDatabase, ref, push, update, remove, onValue } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+      import {
+        getAuth,
+        signInAnonymously,
+        onAuthStateChanged,
+      } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+      import {
+        getDatabase,
+        ref,
+        push,
+        update,
+        remove,
+        onValue,
+      } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
 
-  // 1) Arranque
-  const app = initializeApp(window.FIREBASE_CONFIG);
-  const auth = getAuth(app);
-  const db   = getDatabase(app);
-  const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
+      const firebaseConfig = window.FIREBASE_CONFIG;
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getDatabase(app);
+      const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
+      const tasksPath = `rooms/${ROOM}/tasks`;
 
-  // 2) Login anónimo (necesario para las rules)
-  await signInAnonymously(auth).catch(err => console.error("Auth anónima:", err));
-  onAuthStateChanged(auth, user => user && console.log("UID:", user.uid));
+      function ensureSync() {
+        if (!window.ENABLE_SYNC) {
+          throw new Error("SYNC_OFF");
+        }
+      }
 
-  // 3) Pequeña capa de sincronización
-  function ensureSync() {
-    if (!window.ENABLE_SYNC) throw new Error("SYNC_OFF");
-  }
+      let resolveAuthReady;
+      let rejectAuthReady;
+      const authReadyPromise = new Promise((resolve, reject) => {
+        resolveAuthReady = resolve;
+        rejectAuthReady = reject;
+      });
 
-  export function listenTasks(callback) {
-    try { ensureSync(); } catch { return; }
-    const tasksRef = ref(db, `rooms/${ROOM}/tasks`);
-    onValue(tasksRef, snap => callback(snap.val() || {}));
-  }
+      signInAnonymously(auth).catch((error) => {
+        console.error("Error al iniciar sesión de forma anónima.", error);
 
-  export async function addTask(task) {
-    ensureSync();
-    const tasksRef = ref(db, `rooms/${ROOM}/tasks`);
-    await push(tasksRef, {
-      text: task.text,
-      category: task.category,
-      priority: task.priority,
-      deadline: task.deadline || null,
-      done: false,
-      createdAt: Date.now()
-    });
-  }
+        if (typeof rejectAuthReady === "function") {
+          rejectAuthReady(error);
+          resolveAuthReady = null;
+          rejectAuthReady = null;
+        }
+      });
 
-  export async function toggleTask(id, done) {
-    ensureSync();
-    const taskRef = ref(db, `rooms/${ROOM}/tasks/${id}`);
-    await update(taskRef, { done, updatedAt: Date.now() });
-  }
+      onAuthStateChanged(
+        auth,
+        (user) => {
+          if (user && user.uid) {
+            console.debug("Firebase Auth listo. UID:", user.uid);
 
-  export async function deleteTask(id) {
-    ensureSync();
-    const taskRef = ref(db, `rooms/${ROOM}/tasks/${id}`);
-    await remove(taskRef);
-  }
+            if (typeof resolveAuthReady === "function") {
+              resolveAuthReady(user);
+              resolveAuthReady = null;
+              rejectAuthReady = null;
+            }
+          }
+        },
+        (error) => {
+          console.error("Error al observar el estado de autenticación.", error);
 
-  // 4) Las dejo accesibles para tu app.js
-  window.FirebaseSync = { listenTasks, addTask, toggleTask, deleteTask };
-</script>
+          if (typeof rejectAuthReady === "function") {
+            rejectAuthReady(error);
+            resolveAuthReady = null;
+            rejectAuthReady = null;
+          }
+        },
+      );
+
+      const waitForAuth = () => authReadyPromise;
+
+      export function listenTasks(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const tasksRef = ref(db, tasksPath);
+            unsubscribe = onValue(
+              tasksRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en las tareas de Firebase.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error(
+              "No se pudo iniciar la escucha de tareas porque la autenticación falló.",
+              error,
+            );
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function addTask(task) {
+        await waitForAuth();
+        ensureSync();
+
+        const tasksRef = ref(db, tasksPath);
+        const payload = {
+          description: String(task.description ?? "").trim(),
+          category: task.category ?? "otro",
+          priority: task.priority ?? "media",
+          dueDate: task.dueDate ?? "",
+          completed: Boolean(task.completed),
+          createdAt:
+            typeof task.createdAt === "number" && Number.isFinite(task.createdAt)
+              ? task.createdAt
+              : Date.now(),
+          updatedAt:
+            typeof task.updatedAt === "number" && Number.isFinite(task.updatedAt)
+              ? task.updatedAt
+              : Date.now(),
+          id: typeof task.id === "string" && task.id ? task.id : null,
+        };
+
+        try {
+          await push(tasksRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear la tarea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function toggleTask(taskId, completed) {
+        await waitForAuth();
+        ensureSync();
+
+        const taskRef = ref(db, `${tasksPath}/${taskId}`);
+
+        try {
+          await update(taskRef, {
+            completed: Boolean(completed),
+            updatedAt: Date.now(),
+          });
+        } catch (error) {
+          console.error("No se pudo actualizar la tarea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteTask(taskId) {
+        await waitForAuth();
+        ensureSync();
+
+        const taskRef = ref(db, `${tasksPath}/${taskId}`);
+
+        try {
+          await remove(taskRef);
+        } catch (error) {
+          console.error("No se pudo eliminar la tarea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      window.FirebaseSync = {
+        listenTasks,
+        addTask,
+        toggleTask,
+        deleteTask,
+      };
+    </script>
 
 
     <script src="app.js" defer></script>
