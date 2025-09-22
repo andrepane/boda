@@ -1,0 +1,206 @@
+:root {
+  color-scheme: light;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  font-size: 16px;
+  background-color: #f4f4f6;
+  color: #1f1f23;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem;
+}
+
+.app {
+  width: min(100%, 640px);
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(31, 31, 35, 0.08);
+  padding: 1.75rem 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.app__header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.app__title {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin: 0;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.tabs__tab {
+  border: none;
+  background-color: #f0f0f3;
+  color: inherit;
+  font: inherit;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.tabs__tab:focus-visible {
+  outline: 2px solid #4056f4;
+  outline-offset: 2px;
+}
+
+.tabs__tab.is-active {
+  background-color: #4056f4;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.is-active {
+  display: block;
+}
+
+.checklist__form {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.checklist__input {
+  flex: 1;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #d9d9de;
+  font: inherit;
+}
+
+.checklist__input:focus-visible {
+  outline: 2px solid #4056f4;
+  outline-offset: 2px;
+}
+
+.button {
+  background-color: #4056f4;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.button:hover {
+  background-color: #2e3fd9;
+}
+
+.button:active {
+  transform: scale(0.98);
+}
+
+.checklist__summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  background-color: #f7f7fb;
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+}
+
+.checklist__list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #f9f9ff;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+}
+
+.task__checkbox {
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+}
+
+.task__label {
+  flex: 1;
+  margin: 0;
+  word-break: break-word;
+}
+
+.task.is-completed .task__label {
+  text-decoration: line-through;
+  color: #7a7a82;
+}
+
+.task__delete {
+  background: none;
+  border: none;
+  color: #ff5a66;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+
+.task__delete:hover {
+  color: #e0414a;
+}
+
+.card {
+  background-color: #f7f7fb;
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  color: #5a5a63;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (min-width: 640px) {
+  body {
+    padding: 2.5rem;
+  }
+
+  .app {
+    padding: 2.5rem 3rem;
+  }
+
+  .checklist__form {
+    gap: 1rem;
+  }
+}
