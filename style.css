@@ -833,6 +833,34 @@ body {
   resize: vertical;
 }
 
+.form-control--file {
+  padding: 0.45rem 0.6rem;
+}
+
+.form-control--file::file-selector-button,
+.form-control--file::-webkit-file-upload-button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--brand-dark);
+  background: rgba(98, 86, 255, 0.12);
+  border: none;
+  border-radius: 10px;
+  padding: 0.45rem 0.9rem;
+  margin-right: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.form-control--file::file-selector-button:hover,
+.form-control--file::-webkit-file-upload-button:hover {
+  background: rgba(98, 86, 255, 0.2);
+}
+
+.form-control--file::file-selector-button:active,
+.form-control--file::-webkit-file-upload-button:active {
+  background: rgba(98, 86, 255, 0.28);
+}
+
 .form-submit {
   align-self: end;
   min-height: 52px;
@@ -894,6 +922,21 @@ body {
   box-shadow: 0 16px 32px rgba(31, 35, 48, 0.1);
   display: grid;
   gap: 0.75rem;
+}
+
+.idea-card__media {
+  margin: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(98, 86, 255, 0.08);
+  aspect-ratio: 4 / 3;
+}
+
+.idea-card__image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .idea-card__header {
