@@ -234,24 +234,84 @@
       </div>
     </div>
 
-    <script>
-      window.firebaseConfig = window.firebaseConfig || null;
-      /*
-       * Para activar la sincronización entre dispositivos, sustituye el valor anterior por la
-       * configuración de tu proyecto de Firebase. Puedes obtenerla desde la consola de Firebase y
-       * debería tener este formato:
-       *
-const firebaseConfig = {
-  apiKey: "AIzaSyCKHtBq_JjgYSy-lpnpka8jNpaW4GbMefU",
-  authDomain: "boda-f0cac.firebaseapp.com",
-  projectId: "boda-f0cac",
-  storageBucket: "boda-f0cac.firebasestorage.app",
-  messagingSenderId: "764003731377",
-  appId: "1:764003731377:web:5dccc6fa01c0409121df90",
-  measurementId: "G-QRQKCCNX9E"
-       };
-       */
-    </script>
+<script>
+  // ⚠️ Rellena con TUS credenciales reales. MUY IMPORTANTE: añade también databaseURL.
+  // - databaseURL: cópiala desde Firebase → Realtime Database → pestaña "Data".
+  // - storageBucket debe acabar en .appspot.com
+  window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyCKHtBq_JjgYSy-lpnpka8jNpaW4GbMefU",
+    authDomain: "boda-f0cac.firebaseapp.com",
+    databaseURL: https://console.firebase.google.com/project/boda-f0cac/database/boda-f0cac-default-rtdb/data/~2F?hl=es-419
+    projectId: "boda-f0cac",
+    storageBucket: "boda-f0cac.appspot.com",
+    messagingSenderId: "764003731377",
+    appId: "1:764003731377:web:5dccc6fa01c0409121df90"
+    // measurementId opcional
+  };
+
+  // Encendido / apagado de la sync remota sin tocar más código
+  window.ENABLE_SYNC = true;
+
+  // Sala compartida entre vosotros
+  window.DEFAULT_ROOM_ID = "andrea-boda";
+</script>
+
+    <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+  import { getDatabase, ref, push, update, remove, onValue } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-database.js";
+
+  // 1) Arranque
+  const app = initializeApp(window.FIREBASE_CONFIG);
+  const auth = getAuth(app);
+  const db   = getDatabase(app);
+  const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
+
+  // 2) Login anónimo (necesario para las rules)
+  await signInAnonymously(auth).catch(err => console.error("Auth anónima:", err));
+  onAuthStateChanged(auth, user => user && console.log("UID:", user.uid));
+
+  // 3) Pequeña capa de sincronización
+  function ensureSync() {
+    if (!window.ENABLE_SYNC) throw new Error("SYNC_OFF");
+  }
+
+  export function listenTasks(callback) {
+    try { ensureSync(); } catch { return; }
+    const tasksRef = ref(db, `rooms/${ROOM}/tasks`);
+    onValue(tasksRef, snap => callback(snap.val() || {}));
+  }
+
+  export async function addTask(task) {
+    ensureSync();
+    const tasksRef = ref(db, `rooms/${ROOM}/tasks`);
+    await push(tasksRef, {
+      text: task.text,
+      category: task.category,
+      priority: task.priority,
+      deadline: task.deadline || null,
+      done: false,
+      createdAt: Date.now()
+    });
+  }
+
+  export async function toggleTask(id, done) {
+    ensureSync();
+    const taskRef = ref(db, `rooms/${ROOM}/tasks/${id}`);
+    await update(taskRef, { done, updatedAt: Date.now() });
+  }
+
+  export async function deleteTask(id) {
+    ensureSync();
+    const taskRef = ref(db, `rooms/${ROOM}/tasks/${id}`);
+    await remove(taskRef);
+  }
+
+  // 4) Las dejo accesibles para tu app.js
+  window.FirebaseSync = { listenTasks, addTask, toggleTask, deleteTask };
+</script>
+
+
     <script src="app.js" defer></script>
   </body>
 </html>
