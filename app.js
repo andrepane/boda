@@ -59,7 +59,7 @@ const renderTasks = () => {
     emptyState.className = 'task';
     const message = document.createElement('p');
     message.className = 'task__label';
-    message.textContent = 'A�ade tu primera tarea para comenzar.';
+    message.textContent = 'Anade tu primera tarea para comenzar.';
     emptyState.appendChild(message);
     list.appendChild(emptyState);
   } else {
@@ -85,7 +85,7 @@ const renderTasks = () => {
       deleteButton.className = 'task__delete';
       deleteButton.type = 'button';
       deleteButton.setAttribute('aria-label', 'Eliminar tarea');
-      deleteButton.textContent = '?';
+      deleteButton.textContent = 'x';
 
       item.append(checkbox, label, deleteButton);
       list.appendChild(item);
@@ -172,3 +172,5 @@ list.addEventListener('click', (event) => {
 
 renderTasks();
 selectTab('checklist');
+
+
