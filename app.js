@@ -1467,6 +1467,127 @@ const initializeGuestSection = () => {
 
 // Ideas
 const ideaForm = document.getElementById('idea-form');
+const createIdeaImageViewer = () => {
+  let container = null;
+  let image = null;
+  let caption = null;
+  let closeButton = null;
+  let lastActiveElement = null;
+
+  const close = () => {
+    if (!container) {
+      return;
+    }
+
+    container.classList.remove('is-visible');
+    container.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('idea-image-viewer-open');
+
+    if (image) {
+      image.src = '';
+    }
+
+    if (caption) {
+      caption.textContent = '';
+      caption.hidden = true;
+    }
+
+    if (lastActiveElement && typeof lastActiveElement.focus === 'function') {
+      lastActiveElement.focus();
+    }
+  };
+
+  const ensureElements = () => {
+    if (container) {
+      return;
+    }
+
+    container = document.createElement('div');
+    container.className = 'idea-image-viewer';
+    container.setAttribute('role', 'dialog');
+    container.setAttribute('aria-modal', 'true');
+    container.setAttribute('aria-hidden', 'true');
+
+    const backdrop = document.createElement('div');
+    backdrop.className = 'idea-image-viewer__backdrop';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'idea-image-viewer__dialog';
+    dialog.setAttribute('role', 'document');
+
+    const figure = document.createElement('figure');
+    figure.className = 'idea-image-viewer__figure';
+
+    image = document.createElement('img');
+    image.className = 'idea-image-viewer__image';
+    image.alt = '';
+
+    caption = document.createElement('figcaption');
+    caption.className = 'idea-image-viewer__caption';
+    caption.hidden = true;
+
+    closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'idea-image-viewer__close';
+    closeButton.textContent = 'Cerrar';
+
+    figure.append(image, caption);
+    dialog.append(figure, closeButton);
+    container.append(backdrop, dialog);
+    document.body.append(container);
+
+    backdrop.addEventListener('click', close);
+    container.addEventListener('click', (event) => {
+      if (event.target === container) {
+        close();
+      }
+    });
+
+    closeButton.addEventListener('click', close);
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && container && container.classList.contains('is-visible')) {
+        event.preventDefault();
+        close();
+      }
+    });
+  };
+
+  const open = (source, title) => {
+    if (!source) {
+      return;
+    }
+
+    ensureElements();
+
+    if (!container || !image || !closeButton) {
+      return;
+    }
+
+    lastActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    image.src = source;
+    image.alt = title ? `Inspiración: ${title}` : 'Idea guardada';
+
+    if (caption) {
+      caption.textContent = title || '';
+      caption.hidden = !title;
+    }
+
+    container.setAttribute('aria-hidden', 'false');
+    container.classList.add('is-visible');
+    document.body.classList.add('idea-image-viewer-open');
+
+    window.requestAnimationFrame(() => {
+      closeButton.focus();
+    });
+  };
+
+  return { open, close };
+};
+
+const ideaImageViewer = createIdeaImageViewer();
+
 const ideaTitleInput = document.getElementById('idea-title');
 const ideaUrlInput = document.getElementById('idea-url');
 const ideaImageInput = document.getElementById('idea-image');
@@ -1686,6 +1807,19 @@ const createIdeaCard = (idea, uid) => {
     const media = document.createElement('figure');
     media.className = 'idea-card__media';
 
+    const previewButton = document.createElement('button');
+    previewButton.type = 'button';
+    previewButton.className = 'idea-card__preview';
+    previewButton.dataset.image = idea.image;
+
+    if (idea.title) {
+      previewButton.dataset.title = idea.title;
+    }
+
+    const previewLabel = idea.title ? `Ver imagen de ${idea.title}` : 'Ver imagen de la idea';
+    previewButton.setAttribute('aria-label', previewLabel);
+    previewButton.title = 'Ver imagen ampliada';
+
     const image = document.createElement('img');
     image.className = 'idea-card__image';
     image.src = idea.image;
@@ -1693,7 +1827,8 @@ const createIdeaCard = (idea, uid) => {
     image.loading = 'lazy';
     image.decoding = 'async';
 
-    media.append(image);
+    previewButton.append(image);
+    media.append(previewButton);
     card.append(media);
   }
 
@@ -1919,6 +2054,15 @@ const handleIdeaGridClick = (event) => {
   const target = event.target instanceof HTMLElement ? event.target : null;
 
   if (!target) {
+    return;
+  }
+
+  const previewButton = target.closest('.idea-card__preview');
+
+  if (previewButton) {
+    const imageSource = previewButton.dataset.image || '';
+    const title = previewButton.dataset.title || '';
+    ideaImageViewer.open(imageSource, title);
     return;
   }
 
