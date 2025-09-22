@@ -264,132 +264,56 @@ const sortTasks = (items) =>
     return secondTime - firstTime;
   });
 
-const buildRemoteChanges = (changes) => {
-  const payload = {};
-
-  if (typeof changes.description === 'string') {
-    const trimmed = changes.description.trim();
-
-    if (trimmed) {
-      payload.description = trimmed;
-    }
+const mapRemoteSnapshotToTasks = (records) => {
+  if (!records || typeof records !== 'object') {
+    return [];
   }
 
-  if (typeof changes.category === 'string' && isValidCategory(changes.category)) {
-    payload.category = changes.category;
-  }
-
-  if (typeof changes.priority === 'string' && isValidPriority(changes.priority)) {
-    payload.priority = changes.priority;
-  }
-
-  if ('dueDate' in changes) {
-    payload.dueDate = normalizeDueDate(changes.dueDate);
-  }
-
-  if ('completed' in changes) {
-    payload.completed = Boolean(changes.completed);
-  }
-
-  if (typeof changes.createdAt === 'number' && Number.isFinite(changes.createdAt)) {
-    payload.createdAt = changes.createdAt;
-  }
-
-  return payload;
+  return Object.entries(records)
+    .map(([id, value]) => normalizeTask({ ...value, id }))
+    .filter((task) => task !== null);
 };
 
-const toRemoteTaskRecord = (task) => ({
-  description: task.description,
-  category: task.category,
-  priority: task.priority,
-  dueDate: task.dueDate || '',
-  completed: Boolean(task.completed),
-  createdAt: typeof task.createdAt === 'number' ? task.createdAt : Date.now(),
-  updatedAt: typeof task.updatedAt === 'number' ? task.updatedAt : Date.now(),
-});
+const createFirebaseController = () => {
+  const sync = typeof window !== 'undefined' ? window.FirebaseSync : null;
 
-const tryInitializeRemote = async ({ onTasks, getLocalTasks }) => {
-  const config = typeof window !== 'undefined' ? window.firebaseConfig : null;
+  if (
+    !sync ||
+    typeof sync.listenTasks !== 'function' ||
+    typeof sync.addTask !== 'function' ||
+    typeof sync.toggleTask !== 'function' ||
+    typeof sync.deleteTask !== 'function'
+  ) {
+    return null;
+  }
 
-  const hasValidConfig = (value) => {
-    if (!value || typeof value !== 'object') {
-      return false;
-    }
+  return {
+    listen(onTasks) {
+      const unsubscribe = sync.listenTasks((records) => {
+        const tasks = mapRemoteSnapshotToTasks(records);
+        onTasks(tasks);
+      });
 
-    const requiredKeys = ['apiKey', 'projectId', 'appId'];
-
-    return requiredKeys.every((key) => typeof value[key] === 'string' && value[key]);
+      return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    },
+    async addTask(task) {
+      await sync.addTask(task);
+    },
+    async setCompletion(taskId, completed) {
+      await sync.toggleTask(taskId, completed);
+    },
+    async deleteTask(taskId) {
+      await sync.deleteTask(taskId);
+    },
   };
-
-  if (!hasValidConfig(config)) {
-    return null;
-  }
-
-  try {
-    const [{ initializeApp }, firestore] = await Promise.all([
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),
-      import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js'),
-    ]);
-
-    const { getFirestore, collection, onSnapshot, setDoc, doc, updateDoc, deleteDoc, getDocs } =
-      firestore;
-
-    const app = initializeApp(config);
-    const db = getFirestore(app);
-    const tasksCollection = collection(db, 'tasks');
-
-    const initialSnapshot = await getDocs(tasksCollection);
-
-    if (initialSnapshot.empty) {
-      const localTasks = getLocalTasks();
-
-      if (localTasks.length) {
-        await Promise.all(
-          localTasks.map((task) => setDoc(doc(tasksCollection, task.id), toRemoteTaskRecord(task))),
-        );
-      }
-    }
-
-    const unsubscribe = onSnapshot(
-      tasksCollection,
-      (snapshot) => {
-        const remoteTasks = snapshot.docs
-          .map((docSnapshot) => normalizeTask({ id: docSnapshot.id, ...docSnapshot.data() }))
-          .filter((task) => task !== null)
-          .map((task) => ({ ...task }));
-
-        onTasks(remoteTasks);
-      },
-      (error) => {
-        console.error('Error al sincronizar datos con Firestore.', error);
-      },
-    );
-
-    return {
-      addTask: async (task) => {
-        await setDoc(doc(tasksCollection, task.id), toRemoteTaskRecord(task));
-      },
-      updateTask: async (taskId, changes) => {
-        const payload = buildRemoteChanges(changes);
-
-        if (!Object.keys(payload).length) {
-          return;
-        }
-
-        payload.updatedAt = Date.now();
-
-        await updateDoc(doc(tasksCollection, taskId), payload);
-      },
-      deleteTask: async (taskId) => {
-        await deleteDoc(doc(tasksCollection, taskId));
-      },
-      destroy: () => unsubscribe(),
-    };
-  } catch (error) {
-    console.warn('No se pudo activar la sincronización en la nube.', error);
-    return null;
-  }
 };
+
+const isSyncDisabledError = (error) =>
+  Boolean(
+    error &&
+      typeof error === 'object' &&
+      (error.message === 'SYNC_OFF' || error.code === 'SYNC_OFF'),
+  );
 
 const createTaskStore = () => {
   let currentTasks = sortTasks(loadTasks());
@@ -421,27 +345,53 @@ const createTaskStore = () => {
   };
 
   const init = async () => {
-    remoteController = await tryInitializeRemote({
-      onTasks: (remoteTasks) => {
+    remoteController = createFirebaseController();
+
+    if (!remoteController) {
+      return;
+    }
+
+    try {
+      remoteController.listen((remoteTasks) => {
         setTasks(remoteTasks);
-      },
-      getLocalTasks: () => currentTasks.map((task) => ({ ...task })),
-    });
+      });
+    } catch (error) {
+      remoteController = null;
+      throw error;
+    }
   };
 
   const addTask = async (task) => {
     if (remoteController) {
-      await remoteController.addTask(task);
-      return;
+      try {
+        await remoteController.addTask(task);
+        return;
+      } catch (error) {
+        console.error('Fallo al sincronizar la nueva tarea con Firebase.', error);
+
+        if (!isSyncDisabledError(error)) {
+          throw error;
+        }
+      }
     }
 
     setTasks([task, ...currentTasks]);
   };
 
   const updateTask = async (taskId, changes) => {
-    if (remoteController) {
-      await remoteController.updateTask(taskId, changes);
-      return;
+    const hasCompletionChange = Object.prototype.hasOwnProperty.call(changes, 'completed');
+
+    if (remoteController && hasCompletionChange) {
+      try {
+        await remoteController.setCompletion(taskId, Boolean(changes.completed));
+        return;
+      } catch (error) {
+        console.error('Fallo al actualizar la tarea en Firebase.', error);
+
+        if (!isSyncDisabledError(error)) {
+          throw error;
+        }
+      }
     }
 
     const now = Date.now();
@@ -455,8 +405,16 @@ const createTaskStore = () => {
 
   const deleteTask = async (taskId) => {
     if (remoteController) {
-      await remoteController.deleteTask(taskId);
-      return;
+      try {
+        await remoteController.deleteTask(taskId);
+        return;
+      } catch (error) {
+        console.error('Fallo al eliminar la tarea en Firebase.', error);
+
+        if (!isSyncDisabledError(error)) {
+          throw error;
+        }
+      }
     }
 
     setTasks(currentTasks.filter((task) => task.id !== taskId));
