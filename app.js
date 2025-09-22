@@ -767,6 +767,36 @@ list.addEventListener('click', (event) => {
 const sanitizeEntityText = (value) =>
   typeof value === 'string' ? value.trim() : '';
 
+const sanitizeIdeaImage = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  if (typeof URL === 'function') {
+    try {
+      const parsed = new URL(trimmed);
+
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return trimmed;
+      }
+    } catch (error) {
+      // Ignorar valores que no sean URLs válidas.
+    }
+  }
+
+  return '';
+};
+
 // Invitados
 const RSVP_LABELS = {
   yes: 'Confirmado',
@@ -1439,6 +1469,7 @@ const initializeGuestSection = () => {
 const ideaForm = document.getElementById('idea-form');
 const ideaTitleInput = document.getElementById('idea-title');
 const ideaUrlInput = document.getElementById('idea-url');
+const ideaImageInput = document.getElementById('idea-image');
 const ideaCategoryInput = document.getElementById('idea-category');
 const ideaNoteInput = document.getElementById('idea-note');
 const ideaSearchInput = document.getElementById('idea-search');
@@ -1465,6 +1496,7 @@ const normalizeIdeaRecord = (id, record) => {
     url: sanitizeEntityText(record.url),
     category: sanitizeEntityText(record.category) || 'Sin categoría',
     note: sanitizeEntityText(record.note),
+    image: sanitizeIdeaImage(record.image),
     likes,
     createdAt: toTimestamp(record.createdAt),
     updatedAt: toTimestamp(record.updatedAt),
@@ -1650,6 +1682,21 @@ const createIdeaCard = (idea, uid) => {
   header.append(titleElement, category);
   card.append(header);
 
+  if (idea.image) {
+    const media = document.createElement('figure');
+    media.className = 'idea-card__media';
+
+    const image = document.createElement('img');
+    image.className = 'idea-card__image';
+    image.src = idea.image;
+    image.alt = idea.title ? `Inspiración: ${idea.title}` : 'Idea guardada';
+    image.loading = 'lazy';
+    image.decoding = 'async';
+
+    media.append(image);
+    card.append(media);
+  }
+
   if (idea.note) {
     const note = document.createElement('p');
     note.className = 'idea-card__note';
@@ -1694,6 +1741,65 @@ const createIdeaCard = (idea, uid) => {
   card.append(footer);
 
   return card;
+};
+
+const readIdeaImageFile = (input) => {
+  if (!input || !input.files || input.files.length === 0) {
+    return Promise.resolve('');
+  }
+
+  const [file] = input.files;
+
+  if (!file) {
+    return Promise.resolve('');
+  }
+
+  if (file.type && !file.type.startsWith('image/')) {
+    const error = new Error('INVALID_IMAGE_TYPE');
+    error.code = 'INVALID_IMAGE_TYPE';
+    return Promise.reject(error);
+  }
+
+  if (typeof FileReader === 'undefined') {
+    const error = new Error('FILE_READER_UNAVAILABLE');
+    error.code = 'FILE_READER_UNAVAILABLE';
+    return Promise.reject(error);
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = typeof reader.result === 'string' ? reader.result.trim() : '';
+
+      if (result && result.startsWith('data:image/')) {
+        resolve(result);
+        return;
+      }
+
+      resolve('');
+    };
+
+    reader.onerror = () => {
+      const error = new Error('IMAGE_READ_FAILED');
+      error.code = 'IMAGE_READ_FAILED';
+      reject(error);
+    };
+
+    reader.onabort = () => {
+      const error = new Error('IMAGE_READ_ABORTED');
+      error.code = 'IMAGE_READ_ABORTED';
+      reject(error);
+    };
+
+    try {
+      reader.readAsDataURL(file);
+    } catch (error) {
+      const readError = new Error('IMAGE_READ_FAILED');
+      readError.code = 'IMAGE_READ_FAILED';
+      reject(readError);
+    }
+  });
 };
 
 const updateIdeasCategoryFilter = () => {
@@ -1750,10 +1856,32 @@ const renderIdeas = () => {
   });
 };
 
-const handleIdeaFormSubmit = (event) => {
+const handleIdeaFormSubmit = async (event) => {
   event.preventDefault();
 
   if (!ideaForm) {
+    return;
+  }
+
+  let imageData = '';
+
+  try {
+    imageData = await readIdeaImageFile(ideaImageInput);
+  } catch (error) {
+    console.error('No se pudo procesar la imagen seleccionada.', error);
+
+    if (error && error.code === 'IMAGE_READ_ABORTED') {
+      return;
+    }
+
+    if (error && error.code === 'INVALID_IMAGE_TYPE') {
+      alert('Selecciona un archivo de imagen válido (JPG, PNG, HEIC…).');
+    } else if (error && error.code === 'FILE_READER_UNAVAILABLE') {
+      alert('Tu navegador no permite subir imágenes en este dispositivo.');
+    } else {
+      alert('No se pudo leer la imagen seleccionada. Inténtalo nuevamente.');
+    }
+
     return;
   }
 
@@ -1763,6 +1891,10 @@ const handleIdeaFormSubmit = (event) => {
     category: ideaCategoryInput ? ideaCategoryInput.value : '',
     note: ideaNoteInput ? ideaNoteInput.value : '',
   };
+
+  if (imageData) {
+    payload.image = imageData;
+  }
 
   const user = getCurrentUser();
   const uid = currentIdeaUserId || (user && user.uid ? user.uid : null);
