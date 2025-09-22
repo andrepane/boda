@@ -21,15 +21,18 @@ tabs.forEach((tab) => {
 });
 
 const CATEGORY_OPTIONS = [
-  { value: 'invitados', label: 'Invitados' },
   { value: 'decoracion', label: 'Decoración' },
+  { value: 'papeleo', label: 'Papeleo' },
   { value: 'catering', label: 'Catering' },
-  { value: 'musica', label: 'Música' },
-  { value: 'viaje', label: 'Viaje de novios' },
+  { value: 'viaje-de-novios', label: 'Viaje de novios' },
+  { value: 'anillos', label: 'Anillos' },
+  { value: 'vestimenta', label: 'Vestimenta' },
+  { value: 'invitados', label: 'Invitados' },
+  { value: 'otro', label: 'Otro' },
 ];
 
-const FALLBACK_CATEGORY = { value: 'otros', label: 'Otros detalles' };
-const ALL_CATEGORIES = [...CATEGORY_OPTIONS, FALLBACK_CATEGORY];
+const FALLBACK_CATEGORY = CATEGORY_OPTIONS[CATEGORY_OPTIONS.length - 1];
+const ALL_CATEGORIES = CATEGORY_OPTIONS;
 
 const PRIORITY_OPTIONS = [
   { value: 'alta', label: 'Alta' },
