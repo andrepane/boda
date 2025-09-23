@@ -269,7 +269,31 @@
                 </div>
 
                 <div class="form-field">
-                  <label class="form-label" for="idea-url">URL</label>
+                  <label class="form-label" for="idea-category">Categoría</label>
+                  <input
+                    id="idea-category"
+                    class="form-control"
+                    type="text"
+                    placeholder="Decoración, música, viaje…"
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="idea-order">Orden manual</label>
+                  <input
+                    id="idea-order"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="1, 2, 3…"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="idea-url">URL principal</label>
                   <input
                     id="idea-url"
                     class="form-control"
@@ -279,24 +303,55 @@
                 </div>
 
                 <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-image">Imagen</label>
+                  <label class="form-label" for="idea-images">Imágenes</label>
                   <input
-                    id="idea-image"
+                    id="idea-images"
                     class="form-control form-control--file"
                     type="file"
                     accept="image/*"
+                    multiple
                   />
+                  <p class="form-hint">Selecciona varias imágenes para crear un mosaico.</p>
                 </div>
 
-                <div class="form-field">
-                  <label class="form-label" for="idea-category">Categoría</label>
-                  <input
-                    id="idea-category"
-                    class="form-control"
-                    type="text"
-                    placeholder="Decoración, música, viaje…"
-                    required
-                  />
+                <div class="form-field form-field--full form-field--palette">
+                  <span class="form-label">Paleta de color</span>
+                  <div class="palette-inputs">
+                    <label class="palette-inputs__item" for="idea-color-primary">
+                      <span>Primario</span>
+                      <input id="idea-color-primary" class="palette-inputs__control" type="color" value="#6256ff" />
+                    </label>
+                    <label class="palette-inputs__item" for="idea-color-secondary">
+                      <span>Secundario</span>
+                      <input id="idea-color-secondary" class="palette-inputs__control" type="color" value="#f8dada" />
+                    </label>
+                    <label class="palette-inputs__item" for="idea-color-accent">
+                      <span>Acento</span>
+                      <input id="idea-color-accent" class="palette-inputs__control" type="color" value="#ffeab5" />
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="idea-checklist-links">Checklist relacionada</label>
+                  <textarea
+                    id="idea-checklist-links"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Título de la tarea | https://enlace"
+                  ></textarea>
+                  <p class="form-hint">Escribe un vínculo por línea. Usa “Título | URL” para enlazar directamente.</p>
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="idea-vendor-links">Proveedores relacionados</label>
+                  <textarea
+                    id="idea-vendor-links"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Nombre del proveedor | https://sitio"
+                  ></textarea>
+                  <p class="form-hint">Añade accesos rápidos a fichas de proveedores o presupuestos.</p>
                 </div>
 
                 <div class="form-field form-field--full">
