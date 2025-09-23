@@ -920,6 +920,7 @@
       const guestsPath = `rooms/${ROOM}/guests`;
       const venuesPath = `rooms/${ROOM}/venues`;
       const ideasPath = `rooms/${ROOM}/ideas`;
+      const timelinePath = `rooms/${ROOM}/timeline`;
       const budgetPath = `rooms/${ROOM}/budget`;
       const budgetMetaPath = `${budgetPath}/meta`;
       const budgetItemsPath = `${budgetPath}/items`;
@@ -1003,6 +1004,47 @@
           .catch((error) => {
             console.error(
               "No se pudo iniciar la escucha de tareas porque la autenticación falló.",
+              error,
+            );
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export function listenMilestones(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const timelineRef = ref(db, timelinePath);
+            unsubscribe = onValue(
+              timelineRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en los hitos de Firebase.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error(
+              "No se pudo iniciar la escucha de hitos porque la autenticación falló.",
               error,
             );
           });
@@ -1132,6 +1174,122 @@
 
       const toTimestampValue = (value, fallback) =>
         typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+      const MILESTONE_STATUS_VALUES = new Set(["planned", "in-progress", "done"]);
+      const MILESTONE_REMINDER_VALUES = new Set(["none", "1w", "3d", "1d"]);
+
+      const sanitizeMilestoneStatus = (value) =>
+        MILESTONE_STATUS_VALUES.has(value) ? value : "planned";
+
+      const sanitizeMilestoneReminder = (value) =>
+        MILESTONE_REMINDER_VALUES.has(value) ? value : "none";
+
+      const normalizeMilestoneResponsibles = (value) => {
+        if (Array.isArray(value)) {
+          return value.map((item) => sanitizeText(item)).filter((item) => Boolean(item));
+        }
+
+        if (typeof value !== "string") {
+          return [];
+        }
+
+        return value
+          .split(",")
+          .map((item) => sanitizeText(item))
+          .filter((item) => Boolean(item));
+      };
+
+      export async function addMilestone(milestone) {
+        await waitForAuth();
+        ensureSync();
+
+        const timelineRef = ref(db, timelinePath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const title = sanitizeText(milestone?.title);
+
+        if (!title) {
+          throw new Error("TITLE_REQUIRED");
+        }
+
+        const payload = {
+          title,
+          date: sanitizeText(milestone?.date),
+          status: sanitizeMilestoneStatus(milestone?.status),
+          responsibles: normalizeMilestoneResponsibles(milestone?.responsibles),
+          reminder: sanitizeMilestoneReminder(milestone?.reminder),
+          notes: sanitizeText(milestone?.notes),
+          createdAt: toTimestampValue(milestone?.createdAt, now),
+          updatedAt: toTimestampValue(milestone?.updatedAt, now),
+          createdBy:
+            sanitizeText(milestone?.createdBy) ||
+            (currentUser && currentUser.uid ? currentUser.uid : null),
+          id: typeof milestone?.id === "string" && milestone.id ? milestone.id : null,
+        };
+
+        try {
+          await push(timelineRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear el hito en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateMilestone(milestoneId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        const milestoneRef = ref(db, `${timelinePath}/${milestoneId}`);
+        const payload = { updatedAt: Date.now() };
+
+        if (typeof changes?.title === "string") {
+          const trimmed = sanitizeText(changes.title);
+          if (trimmed) {
+            payload.title = trimmed;
+          }
+        }
+
+        if (typeof changes?.date === "string") {
+          payload.date = sanitizeText(changes.date);
+        }
+
+        if (typeof changes?.status === "string") {
+          payload.status = sanitizeMilestoneStatus(changes.status);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "responsibles")) {
+          payload.responsibles = normalizeMilestoneResponsibles(changes.responsibles);
+        }
+
+        if (typeof changes?.reminder === "string") {
+          payload.reminder = sanitizeMilestoneReminder(changes.reminder);
+        }
+
+        if (typeof changes?.notes === "string") {
+          payload.notes = sanitizeText(changes.notes);
+        }
+
+        try {
+          await update(milestoneRef, payload);
+        } catch (error) {
+          console.error("No se pudo actualizar el hito en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteMilestone(milestoneId) {
+        await waitForAuth();
+        ensureSync();
+
+        const milestoneRef = ref(db, `${timelinePath}/${milestoneId}`);
+
+        try {
+          await remove(milestoneRef);
+        } catch (error) {
+          console.error("No se pudo eliminar el hito en Firebase.", error);
+          throw error;
+        }
+      }
 
       export function listenGuests(callback) {
         if (!window.ENABLE_SYNC) {
@@ -2008,6 +2166,10 @@
         addTask,
         toggleTask,
         deleteTask,
+        listenMilestones,
+        addMilestone,
+        updateMilestone,
+        deleteMilestone,
         listenGuests,
         addGuest,
         updateGuest,
