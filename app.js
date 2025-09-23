@@ -1631,6 +1631,22 @@ const initializeTimelineSection = () => {
 const sanitizeEntityText = (value) =>
   typeof value === 'string' ? value.trim() : '';
 
+const sanitizeHexColor = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  const isValid = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed);
+
+  return isValid ? trimmed.toLowerCase() : '';
+};
+
 const sanitizeIdeaImage = (value) => {
   if (typeof value !== 'string') {
     return '';
@@ -1659,6 +1675,153 @@ const sanitizeIdeaImage = (value) => {
   }
 
   return '';
+};
+
+const sanitizeIdeaImages = (value) => {
+  if (Array.isArray(value)) {
+    return value.map(sanitizeIdeaImage).filter((image) => Boolean(image));
+  }
+
+  const single = sanitizeIdeaImage(value);
+  return single ? [single] : [];
+};
+
+const sanitizeIdeaLinkUrl = (value) => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '';
+  }
+
+  if (typeof URL === 'function') {
+    try {
+      const parsed = new URL(trimmed);
+
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed.toString();
+      }
+    } catch (error) {
+      // Ignorar valores que no sean URLs válidas.
+    }
+  }
+
+  return '';
+};
+
+const sanitizeIdeaOrder = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const parsed = Number.parseFloat(trimmed.replace(',', '.'));
+
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+};
+
+const sanitizeIdeaPalette = (value) => {
+  const source = value && typeof value === 'object' ? value : {};
+  const fromArray = Array.isArray(value)
+    ? { primary: value[0], secondary: value[1], accent: value[2] }
+    : {};
+
+  const primary = sanitizeHexColor(
+    source.primary ?? source.main ?? source.principal ?? fromArray.primary ?? '',
+  );
+  const secondary = sanitizeHexColor(
+    source.secondary ?? source.secundario ?? fromArray.secondary ?? '',
+  );
+  const accent = sanitizeHexColor(
+    source.accent ?? source.tertiary ?? source.acento ?? fromArray.accent ?? '',
+  );
+
+  return {
+    primary,
+    secondary,
+    accent,
+  };
+};
+
+const sanitizeIdeaRelationEntry = (entry) => {
+  if (!entry) {
+    return null;
+  }
+
+  if (typeof entry === 'string') {
+    const label = sanitizeEntityText(entry);
+    return label ? { label, url: '' } : null;
+  }
+
+  if (typeof entry !== 'object') {
+    return null;
+  }
+
+  const label = sanitizeEntityText(
+    entry.label ?? entry.title ?? entry.name ?? entry.text ?? entry.descripcion ?? '',
+  );
+  const url = sanitizeIdeaLinkUrl(entry.url ?? entry.href ?? entry.link ?? '');
+
+  if (!label && !url) {
+    return null;
+  }
+
+  const finalLabel = label || (url ? url.replace(/^https?:\/\//, '').replace(/\/?$/, '') : '');
+
+  return {
+    label: finalLabel,
+    url,
+  };
+};
+
+const sanitizeIdeaRelations = (value) => {
+  const result = {
+    checklist: [],
+    vendors: [],
+  };
+
+  if (!value || typeof value !== 'object') {
+    return result;
+  }
+
+  const toArray = (input) => {
+    if (Array.isArray(input)) {
+      return input;
+    }
+
+    if (typeof input === 'string') {
+      return input
+        .split(/\r?\n|,/)
+        .map((item) => item.trim())
+        .filter((item) => Boolean(item))
+        .map((item) => ({ label: item }));
+    }
+
+    return [];
+  };
+
+  result.checklist = toArray(value.checklist ?? value.tasks ?? value.tareas)
+    .map(sanitizeIdeaRelationEntry)
+    .filter((entry) => entry !== null);
+  result.vendors = toArray(value.vendors ?? value.providers ?? value.proveedores)
+    .map(sanitizeIdeaRelationEntry)
+    .filter((entry) => entry !== null);
+
+  return result;
 };
 
 // Invitados
@@ -2456,8 +2619,14 @@ const ideaImageViewer = createIdeaImageViewer();
 
 const ideaTitleInput = document.getElementById('idea-title');
 const ideaUrlInput = document.getElementById('idea-url');
-const ideaImageInput = document.getElementById('idea-image');
+const ideaImagesInput = document.getElementById('idea-images');
 const ideaCategoryInput = document.getElementById('idea-category');
+const ideaOrderInput = document.getElementById('idea-order');
+const ideaColorPrimaryInput = document.getElementById('idea-color-primary');
+const ideaColorSecondaryInput = document.getElementById('idea-color-secondary');
+const ideaColorAccentInput = document.getElementById('idea-color-accent');
+const ideaChecklistLinksInput = document.getElementById('idea-checklist-links');
+const ideaVendorLinksInput = document.getElementById('idea-vendor-links');
 const ideaNoteInput = document.getElementById('idea-note');
 const ideaSearchInput = document.getElementById('idea-search');
 const ideaCategoryFilter = document.getElementById('idea-category-filter');
@@ -2477,13 +2646,26 @@ const normalizeIdeaRecord = (id, record) => {
   const likes =
     record.likes && typeof record.likes === 'object' ? record.likes : {};
 
+  const images = sanitizeIdeaImages(
+    Array.isArray(record.images) && record.images.length ? record.images : record.image,
+  );
+  const palette = sanitizeIdeaPalette(record.palette);
+  const relations = sanitizeIdeaRelations(record.relations);
+  const order = sanitizeIdeaOrder(record.order);
+
+  const image = images.length ? images[0] : '';
+
   return {
     id,
     title,
     url: sanitizeEntityText(record.url),
     category: sanitizeEntityText(record.category) || 'Sin categoría',
     note: sanitizeEntityText(record.note),
-    image: sanitizeIdeaImage(record.image),
+    images,
+    image,
+    palette,
+    relations,
+    order,
     likes,
     createdAt: toTimestamp(record.createdAt),
     updatedAt: toTimestamp(record.updatedAt),
@@ -2496,6 +2678,23 @@ const mapIdeaRecords = (records) =>
     .map(([id, value]) => normalizeIdeaRecord(id, value))
     .filter((value) => value !== null)
     .sort((first, second) => {
+      const firstOrder =
+        typeof first.order === 'number' && Number.isFinite(first.order) ? first.order : null;
+      const secondOrder =
+        typeof second.order === 'number' && Number.isFinite(second.order) ? second.order : null;
+
+      if (firstOrder !== null && secondOrder !== null && firstOrder !== secondOrder) {
+        return firstOrder - secondOrder;
+      }
+
+      if (firstOrder !== null && secondOrder === null) {
+        return -1;
+      }
+
+      if (firstOrder === null && secondOrder !== null) {
+        return 1;
+      }
+
       const firstTime = typeof first.createdAt === 'number' ? first.createdAt : 0;
       const secondTime = typeof second.createdAt === 'number' ? second.createdAt : 0;
       return secondTime - firstTime;
@@ -2652,6 +2851,9 @@ const createIdeaCard = (idea, uid) => {
   const header = document.createElement('header');
   header.className = 'idea-card__header';
 
+  const headerMain = document.createElement('div');
+  headerMain.className = 'idea-card__header-main';
+
   const titleElement = idea.url ? document.createElement('a') : document.createElement('h3');
   titleElement.className = 'idea-card__title';
   titleElement.textContent = idea.title;
@@ -2662,40 +2864,106 @@ const createIdeaCard = (idea, uid) => {
     titleElement.rel = 'noopener noreferrer';
   }
 
+  headerMain.append(titleElement);
+
   const category = document.createElement('span');
   category.className = 'idea-card__category';
   category.textContent = idea.category;
+  headerMain.append(category);
 
-  header.append(titleElement, category);
+  header.append(headerMain);
+
+  if (typeof idea.order === 'number' && Number.isFinite(idea.order)) {
+    const order = document.createElement('span');
+    order.className = 'idea-card__order';
+    const formattedOrder = Number.isInteger(idea.order)
+      ? idea.order.toString()
+      : idea.order.toFixed(1);
+    order.textContent = `#${formattedOrder}`;
+    order.title = 'Orden manual';
+    header.append(order);
+  }
+
   card.append(header);
 
-  if (idea.image) {
-    const media = document.createElement('figure');
-    media.className = 'idea-card__media';
+  const images = Array.isArray(idea.images) && idea.images.length ? idea.images : idea.image ? [idea.image] : [];
 
-    const previewButton = document.createElement('button');
-    previewButton.type = 'button';
-    previewButton.className = 'idea-card__preview';
-    previewButton.dataset.image = idea.image;
+  if (images.length) {
+    const gallery = document.createElement('div');
+    gallery.className = 'idea-card__gallery';
 
-    if (idea.title) {
-      previewButton.dataset.title = idea.title;
-    }
+    images.forEach((source, index) => {
+      if (!source) {
+        return;
+      }
 
-    const previewLabel = idea.title ? `Ver imagen de ${idea.title}` : 'Ver imagen de la idea';
-    previewButton.setAttribute('aria-label', previewLabel);
-    previewButton.title = 'Ver imagen ampliada';
+      const thumb = document.createElement('button');
+      thumb.type = 'button';
+      thumb.className = 'idea-card__thumb';
 
-    const image = document.createElement('img');
-    image.className = 'idea-card__image';
-    image.src = idea.image;
-    image.alt = idea.title ? `Inspiración: ${idea.title}` : 'Idea guardada';
-    image.loading = 'lazy';
-    image.decoding = 'async';
+      if (index === 0) {
+        thumb.classList.add('idea-card__thumb--main');
+      } else if ((index + 1) % 3 === 0) {
+        thumb.classList.add('idea-card__thumb--tall');
+      } else {
+        thumb.classList.add('idea-card__thumb--wide');
+      }
 
-    previewButton.append(image);
-    media.append(previewButton);
-    card.append(media);
+      thumb.dataset.image = source;
+
+      if (idea.title) {
+        thumb.dataset.title = idea.title;
+      }
+
+      const previewLabel = idea.title
+        ? `Ver imagen ${index + 1} de ${idea.title}`
+        : `Ver imagen ${index + 1} de la idea`;
+      thumb.setAttribute('aria-label', previewLabel);
+      thumb.title = 'Ver imagen ampliada';
+
+      const image = document.createElement('img');
+      image.className = 'idea-card__image';
+      image.src = source;
+      image.alt = idea.title ? `Inspiración: ${idea.title}` : 'Idea guardada';
+      image.loading = 'lazy';
+      image.decoding = 'async';
+
+      thumb.append(image);
+      gallery.append(thumb);
+    });
+
+    card.append(gallery);
+  }
+
+  const paletteEntries = [
+    { key: 'primary', label: 'Primario', value: idea.palette ? idea.palette.primary : '' },
+    { key: 'secondary', label: 'Secundario', value: idea.palette ? idea.palette.secondary : '' },
+    { key: 'accent', label: 'Acento', value: idea.palette ? idea.palette.accent : '' },
+  ].filter((entry) => Boolean(entry.value));
+
+  if (paletteEntries.length) {
+    const palette = document.createElement('div');
+    palette.className = 'idea-card__palette';
+
+    const paletteTitle = document.createElement('span');
+    paletteTitle.className = 'idea-card__palette-title';
+    paletteTitle.textContent = 'Paleta';
+    palette.append(paletteTitle);
+
+    const paletteList = document.createElement('div');
+    paletteList.className = 'idea-card__palette-swatches';
+
+    paletteEntries.forEach((entry) => {
+      const swatch = document.createElement('span');
+      swatch.className = `idea-card__swatch idea-card__swatch--${entry.key}`;
+      swatch.style.setProperty('--swatch-color', entry.value);
+      swatch.title = `${entry.label}: ${entry.value.toUpperCase()}`;
+      swatch.textContent = entry.value.toUpperCase();
+      paletteList.append(swatch);
+    });
+
+    palette.append(paletteList);
+    card.append(palette);
   }
 
   if (idea.note) {
@@ -2703,6 +2971,72 @@ const createIdeaCard = (idea, uid) => {
     note.className = 'idea-card__note';
     note.textContent = idea.note;
     card.append(note);
+  }
+
+  const relations = idea.relations || {};
+  const relationGroups = [
+    {
+      key: 'checklist',
+      label: 'Checklist',
+      items: Array.isArray(relations.checklist) ? relations.checklist : [],
+    },
+    {
+      key: 'vendors',
+      label: 'Proveedores',
+      items: Array.isArray(relations.vendors) ? relations.vendors : [],
+    },
+  ].filter((group) => group.items.length);
+
+  if (relationGroups.length) {
+    const relationsContainer = document.createElement('div');
+    relationsContainer.className = 'idea-card__relations';
+
+    relationGroups.forEach((group) => {
+      const groupElement = document.createElement('div');
+      groupElement.className = `idea-card__relation-group idea-card__relation-group--${group.key}`;
+
+      const groupTitle = document.createElement('span');
+      groupTitle.className = 'idea-card__relation-title';
+      groupTitle.textContent = group.label;
+      groupElement.append(groupTitle);
+
+      const groupList = document.createElement('div');
+      groupList.className = 'idea-card__relation-list';
+
+      group.items.forEach((item) => {
+        if (!item || typeof item !== 'object') {
+          return;
+        }
+
+        const label = sanitizeEntityText(item.label);
+        const url = sanitizeIdeaLinkUrl(item.url);
+
+        if (!label && !url) {
+          return;
+        }
+
+        const chip = document.createElement(url ? 'a' : 'span');
+        chip.className = 'idea-card__relation-chip';
+        chip.textContent = label || (url ? url.replace(/^https?:\/\//, '').replace(/\/?$/, '') : '');
+
+        if (url) {
+          chip.href = url;
+          chip.target = '_blank';
+          chip.rel = 'noopener noreferrer';
+        }
+
+        groupList.append(chip);
+      });
+
+      if (groupList.childElementCount > 0) {
+        groupElement.append(groupList);
+        relationsContainer.append(groupElement);
+      }
+    });
+
+    if (relationsContainer.childElementCount > 0) {
+      card.append(relationsContainer);
+    }
   }
 
   const footer = document.createElement('footer');
@@ -2744,18 +3078,20 @@ const createIdeaCard = (idea, uid) => {
   return card;
 };
 
-const readIdeaImageFile = (input) => {
+const readIdeaImageFiles = (input) => {
   if (!input || !input.files || input.files.length === 0) {
-    return Promise.resolve('');
+    return Promise.resolve([]);
   }
 
-  const [file] = input.files;
+  const files = Array.from(input.files).filter((file) => Boolean(file));
 
-  if (!file) {
-    return Promise.resolve('');
+  if (!files.length) {
+    return Promise.resolve([]);
   }
 
-  if (file.type && !file.type.startsWith('image/')) {
+  const hasInvalidType = files.some((file) => file.type && !file.type.startsWith('image/'));
+
+  if (hasInvalidType) {
     const error = new Error('INVALID_IMAGE_TYPE');
     error.code = 'INVALID_IMAGE_TYPE';
     return Promise.reject(error);
@@ -2767,40 +3103,94 @@ const readIdeaImageFile = (input) => {
     return Promise.reject(error);
   }
 
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  const readFile = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result.trim() : '';
+      reader.onload = () => {
+        const result = typeof reader.result === 'string' ? reader.result.trim() : '';
 
-      if (result && result.startsWith('data:image/')) {
-        resolve(result);
-        return;
+        if (result && result.startsWith('data:image/')) {
+          resolve(result);
+          return;
+        }
+
+        resolve('');
+      };
+
+      reader.onerror = () => {
+        const error = new Error('IMAGE_READ_FAILED');
+        error.code = 'IMAGE_READ_FAILED';
+        reject(error);
+      };
+
+      reader.onabort = () => {
+        const error = new Error('IMAGE_READ_ABORTED');
+        error.code = 'IMAGE_READ_ABORTED';
+        reject(error);
+      };
+
+      try {
+        reader.readAsDataURL(file);
+      } catch (error) {
+        const readError = new Error('IMAGE_READ_FAILED');
+        readError.code = 'IMAGE_READ_FAILED';
+        reject(readError);
+      }
+    });
+
+  return Promise.all(files.map((file) => readFile(file))).then((results) =>
+    results.filter((result) => Boolean(result)),
+  );
+};
+
+const parseIdeaQuickLinksInput = (value) => {
+  if (typeof value !== 'string') {
+    return [];
+  }
+
+  const seen = new Set();
+
+  return value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => Boolean(line))
+    .map((line) => {
+      const [firstPart, secondPart] = line.split('|').map((part) => part.trim());
+
+      let label = '';
+      let url = '';
+
+      if (secondPart) {
+        label = sanitizeEntityText(firstPart);
+        url = sanitizeIdeaLinkUrl(secondPart);
+      } else if (firstPart.startsWith('http://') || firstPart.startsWith('https://')) {
+        url = sanitizeIdeaLinkUrl(firstPart);
+      } else {
+        label = sanitizeEntityText(firstPart);
       }
 
-      resolve('');
-    };
+      if (!label && url) {
+        label = url.replace(/^https?:\/\//, '').replace(/\/?$/, '');
+      }
 
-    reader.onerror = () => {
-      const error = new Error('IMAGE_READ_FAILED');
-      error.code = 'IMAGE_READ_FAILED';
-      reject(error);
-    };
+      if (!label && !url) {
+        return null;
+      }
 
-    reader.onabort = () => {
-      const error = new Error('IMAGE_READ_ABORTED');
-      error.code = 'IMAGE_READ_ABORTED';
-      reject(error);
-    };
+      return { label, url };
+    })
+    .filter((entry) => entry !== null)
+    .filter((entry) => {
+      const key = `${entry.label}|${entry.url}`;
 
-    try {
-      reader.readAsDataURL(file);
-    } catch (error) {
-      const readError = new Error('IMAGE_READ_FAILED');
-      readError.code = 'IMAGE_READ_FAILED';
-      reject(readError);
-    }
-  });
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
 };
 
 const updateIdeasCategoryFilter = () => {
@@ -2864,27 +3254,39 @@ const handleIdeaFormSubmit = async (event) => {
     return;
   }
 
-  let imageData = '';
+  let imagesData = [];
 
   try {
-    imageData = await readIdeaImageFile(ideaImageInput);
+    imagesData = await readIdeaImageFiles(ideaImagesInput);
   } catch (error) {
-    console.error('No se pudo procesar la imagen seleccionada.', error);
+    console.error('No se pudieron procesar las imágenes seleccionadas.', error);
 
     if (error && error.code === 'IMAGE_READ_ABORTED') {
       return;
     }
 
     if (error && error.code === 'INVALID_IMAGE_TYPE') {
-      alert('Selecciona un archivo de imagen válido (JPG, PNG, HEIC…).');
+      alert('Selecciona únicamente archivos de imagen válidos (JPG, PNG, HEIC…).');
     } else if (error && error.code === 'FILE_READER_UNAVAILABLE') {
       alert('Tu navegador no permite subir imágenes en este dispositivo.');
     } else {
-      alert('No se pudo leer la imagen seleccionada. Inténtalo nuevamente.');
+      alert('No se pudieron leer las imágenes seleccionadas. Inténtalo nuevamente.');
     }
 
     return;
   }
+
+  const paletteInput = sanitizeIdeaPalette({
+    primary: ideaColorPrimaryInput ? ideaColorPrimaryInput.value : '',
+    secondary: ideaColorSecondaryInput ? ideaColorSecondaryInput.value : '',
+    accent: ideaColorAccentInput ? ideaColorAccentInput.value : '',
+  });
+
+  const checklistLinks = parseIdeaQuickLinksInput(
+    ideaChecklistLinksInput ? ideaChecklistLinksInput.value : '',
+  );
+  const vendorLinks = parseIdeaQuickLinksInput(ideaVendorLinksInput ? ideaVendorLinksInput.value : '');
+  const manualOrder = ideaOrderInput ? sanitizeIdeaOrder(ideaOrderInput.value) : null;
 
   const payload = {
     title: ideaTitleInput ? ideaTitleInput.value : '',
@@ -2893,8 +3295,24 @@ const handleIdeaFormSubmit = async (event) => {
     note: ideaNoteInput ? ideaNoteInput.value : '',
   };
 
-  if (imageData) {
-    payload.image = imageData;
+  if (imagesData.length) {
+    payload.images = imagesData;
+    payload.image = imagesData[0];
+  }
+
+  if (Object.values(paletteInput).some((color) => Boolean(color))) {
+    payload.palette = paletteInput;
+  }
+
+  if (checklistLinks.length || vendorLinks.length) {
+    payload.relations = {
+      checklist: checklistLinks,
+      vendors: vendorLinks,
+    };
+  }
+
+  if (manualOrder !== null) {
+    payload.order = manualOrder;
   }
 
   const user = getCurrentUser();
@@ -2903,6 +3321,10 @@ const handleIdeaFormSubmit = async (event) => {
   const submission = ideasStore.addIdea(payload, uid);
 
   ideaForm.reset();
+
+  if (ideaImagesInput) {
+    ideaImagesInput.value = '';
+  }
 
   if (ideaTitleInput) {
     ideaTitleInput.focus();
@@ -2923,7 +3345,7 @@ const handleIdeaGridClick = (event) => {
     return;
   }
 
-  const previewButton = target.closest('.idea-card__preview');
+  const previewButton = target.closest('.idea-card__thumb, .idea-card__preview');
 
   if (previewButton) {
     const imageSource = previewButton.dataset.image || '';
