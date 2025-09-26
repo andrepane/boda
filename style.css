@@ -874,6 +874,7 @@ body {
 .form-control,
 .guest-card__rsvp,
 .guest-card__plus,
+.guest-card__room,
 .guest-card__contact,
 .guest-card__dietary,
 .guest-card__notes,
@@ -891,6 +892,7 @@ body {
 .form-control:focus-visible,
 .guest-card__rsvp:focus-visible,
 .guest-card__plus:focus-visible,
+.guest-card__room:focus-visible,
 .guest-card__contact:focus-visible,
 .guest-card__dietary:focus-visible,
 .guest-card__notes:focus-visible,
@@ -2195,6 +2197,90 @@ body.idea-image-viewer-open {
   margin: 0;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.guest-rooms {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.guest-rooms__header {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.guest-rooms__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.guest-rooms__subtitle {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.guest-rooms__grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.guest-room-card {
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(98, 86, 255, 0.14);
+  box-shadow: 0 12px 24px rgba(31, 35, 48, 0.08);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.guest-room-card--unassigned {
+  background: rgba(255, 255, 255, 0.85);
+  border-style: dashed;
+}
+
+.guest-room-card__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.guest-room-card__meta {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.guest-room-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.guest-room-card__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.guest-room-card__guest {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.guest-room-card__details {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: right;
 }
 
 .budget-target {

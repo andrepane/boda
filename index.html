@@ -663,6 +663,17 @@
                 </div>
 
                 <div class="form-field">
+                  <label class="form-label" for="guest-room">Habitación</label>
+                  <input
+                    id="guest-room"
+                    class="form-control"
+                    type="text"
+                    placeholder="Ej. Suite 1, Habitación 202"
+                    list="guest-room-options"
+                  />
+                </div>
+
+                <div class="form-field">
                   <label class="form-label" for="guest-rsvp">RSVP</label>
                   <select id="guest-rsvp" class="form-control">
                     <option value="pending">Pendiente</option>
@@ -760,12 +771,31 @@
                     <option value="">Todos</option>
                   </select>
                 </div>
+                <div class="guest-filter">
+                  <label class="form-label" for="guest-room-filter">Habitación</label>
+                  <select id="guest-room-filter" class="form-control">
+                    <option value="">Todas</option>
+                    <option value="__unassigned">Sin asignar</option>
+                  </select>
+                </div>
                 <button id="guest-export" class="button button--ghost" type="button">
                   Exportar CSV
                 </button>
               </div>
 
+              <datalist id="guest-room-options"></datalist>
+
               <ul id="guest-list" class="guest-list" aria-live="polite"></ul>
+
+              <section id="guest-rooms" class="guest-rooms" aria-live="polite" hidden>
+                <header class="guest-rooms__header">
+                  <h3 class="guest-rooms__title">Distribución por habitaciones</h3>
+                  <p class="guest-rooms__subtitle">
+                    Consulta quién comparte cada habitación y el total de personas asignadas.
+                  </p>
+                </header>
+                <div id="guest-rooms-grid" class="guest-rooms__grid"></div>
+              </section>
             </div>
           </section>
 
@@ -1401,6 +1431,7 @@
           name,
           side: normalizeSide(guest?.side),
           group: sanitizeText(guest?.group),
+          room: sanitizeText(guest?.room),
           rsvp: normalizeRsvp(guest?.rsvp),
           plusOnes: normalizePlusOnes(guest?.plusOnes),
           dietary: sanitizeText(guest?.dietary),
@@ -1436,6 +1467,10 @@
 
         if (typeof changes?.group === "string") {
           updatePayload.group = changes.group.trim();
+        }
+
+        if (typeof changes?.room === "string") {
+          updatePayload.room = changes.room.trim();
         }
 
         if (typeof changes?.contact === "string") {
@@ -1521,6 +1556,7 @@
           "Nombre",
           "Lado",
           "Grupo",
+          "Habitación",
           "RSVP",
           "Acompañantes",
           "Personas totales",
@@ -1548,6 +1584,7 @@
               sanitizeText(record.name),
               normalizeSide(record.side),
               sanitizeText(record.group),
+              sanitizeText(record.room),
               normalizeRsvp(record.rsvp),
               plusOnes,
               totalPeople,

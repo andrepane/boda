@@ -1840,6 +1840,7 @@ const guestForm = document.getElementById('guest-form');
 const guestNameInput = document.getElementById('guest-name');
 const guestSideSelect = document.getElementById('guest-side');
 const guestGroupInput = document.getElementById('guest-group');
+const guestRoomInput = document.getElementById('guest-room');
 const guestRsvpSelect = document.getElementById('guest-rsvp');
 const guestPlusInput = document.getElementById('guest-plus');
 const guestContactInput = document.getElementById('guest-contact');
@@ -1849,7 +1850,11 @@ const guestList = document.getElementById('guest-list');
 const guestSearchInput = document.getElementById('guest-search');
 const guestRsvpFilter = document.getElementById('guest-rsvp-filter');
 const guestGroupFilter = document.getElementById('guest-group-filter');
+const guestRoomFilter = document.getElementById('guest-room-filter');
 const guestExportButton = document.getElementById('guest-export');
+const guestRoomDatalist = document.getElementById('guest-room-options');
+const guestRoomsSection = document.getElementById('guest-rooms');
+const guestRoomsGrid = document.getElementById('guest-rooms-grid');
 
 const guestCounters = {
   total: document.getElementById('guest-total'),
@@ -1862,6 +1867,7 @@ const guestFiltersState = {
   search: '',
   rsvp: '',
   group: '',
+  room: '',
 };
 
 const isValidGuestSide = (value) => Object.prototype.hasOwnProperty.call(SIDE_LABELS, value);
@@ -1885,6 +1891,7 @@ const normalizeGuestRecord = (id, record) => {
     name,
     side: isValidGuestSide(record.side) ? record.side : 'ambos',
     group: sanitizeEntityText(record.group),
+    room: sanitizeEntityText(record.room),
     rsvp: isValidGuestRsvp(record.rsvp) ? record.rsvp : 'pending',
     plusOnes: Number.isFinite(plus) ? Math.max(0, plus) : 0,
     dietary: sanitizeEntityText(record.dietary),
@@ -2043,6 +2050,7 @@ const applyGuestFilters = (items) => {
   const search = guestFiltersState.search;
   const rsvpFilter = guestFiltersState.rsvp;
   const groupFilter = guestFiltersState.group;
+  const roomFilter = guestFiltersState.room;
 
   return items.filter((guest) => {
     if (search && !guest.name.toLowerCase().includes(search)) {
@@ -2054,6 +2062,14 @@ const applyGuestFilters = (items) => {
     }
 
     if (groupFilter && guest.group !== groupFilter) {
+      return false;
+    }
+
+    if (roomFilter === '__unassigned') {
+      if (guest.room && guest.room.trim()) {
+        return false;
+      }
+    } else if (roomFilter && guest.room !== roomFilter) {
       return false;
     }
 
@@ -2087,6 +2103,10 @@ const buildGuestMetaText = (guest) => {
 
   if (guest.group) {
     parts.push(`Grupo: ${guest.group}`);
+  }
+
+  if (guest.room) {
+    parts.push(`Habitación: ${guest.room}`);
   }
 
   parts.push(`Personas: ${1 + Math.max(0, guest.plusOnes || 0)}`);
@@ -2163,7 +2183,12 @@ const createGuestCard = (guest) => {
   const details = document.createElement('div');
   details.className = 'guest-card__details';
 
-  const createDetailField = (labelText, value, className, { multiline = false } = {}) => {
+  const createDetailField = (
+    labelText,
+    value,
+    className,
+    { multiline = false, placeholder = '', listId = '' } = {},
+  ) => {
     const wrapper = document.createElement('label');
     wrapper.className = 'guest-card__field';
 
@@ -2177,7 +2202,7 @@ const createGuestCard = (guest) => {
       textarea.className = className;
       textarea.rows = 2;
       textarea.value = value || '';
-      textarea.placeholder = 'Añade una nota';
+      textarea.placeholder = placeholder || 'Añade una nota';
       wrapper.append(textarea);
       return wrapper;
     }
@@ -2186,10 +2211,20 @@ const createGuestCard = (guest) => {
     input.className = className;
     input.type = 'text';
     input.value = value || '';
+    if (placeholder) {
+      input.placeholder = placeholder;
+    }
+    if (listId) {
+      input.setAttribute('list', listId);
+    }
     wrapper.append(input);
     return wrapper;
   };
 
+  const roomField = createDetailField('Habitación', guest.room, 'guest-card__room', {
+    placeholder: 'Habitación asignada',
+    listId: 'guest-room-options',
+  });
   const contactField = createDetailField('Contacto', guest.contact, 'guest-card__contact');
   const dietaryField = createDetailField(
     'Restricciones',
@@ -2198,9 +2233,10 @@ const createGuestCard = (guest) => {
   );
   const notesField = createDetailField('Notas', guest.notes, 'guest-card__notes', {
     multiline: true,
+    placeholder: 'Añade una nota',
   });
 
-  details.append(contactField, dietaryField, notesField);
+  details.append(roomField, contactField, dietaryField, notesField);
 
   item.append(header, controls, details);
 
@@ -2236,6 +2272,120 @@ const renderGuestList = () => {
   });
 };
 
+const renderGuestRooms = () => {
+  if (!guestRoomsGrid || !guestRoomsSection) {
+    return;
+  }
+
+  guestRoomsGrid.innerHTML = '';
+
+  const roomsMap = new Map();
+  const unassigned = [];
+
+  guestsData.forEach((guest) => {
+    const room = typeof guest.room === 'string' ? guest.room.trim() : '';
+    const totalPeople = 1 + Math.max(0, guest.plusOnes || 0);
+
+    if (room) {
+      if (!roomsMap.has(room)) {
+        roomsMap.set(room, { guests: [], totalPeople: 0 });
+      }
+
+      const entry = roomsMap.get(room);
+      entry.guests.push(guest);
+      entry.totalPeople += totalPeople;
+    } else {
+      unassigned.push({ guest, totalPeople });
+    }
+  });
+
+  const sortedRooms = Array.from(roomsMap.entries()).sort((first, second) =>
+    first[0].localeCompare(second[0], 'es', { sensitivity: 'base' }),
+  );
+
+  if (!sortedRooms.length && !unassigned.length) {
+    guestRoomsSection.hidden = true;
+    return;
+  }
+
+  guestRoomsSection.hidden = false;
+
+  const formatMeta = (guestCount, peopleCount) => {
+    const guestLabel = guestCount === 1 ? '1 invitado' : `${guestCount} invitados`;
+    const peopleLabel = peopleCount === 1 ? '1 persona' : `${peopleCount} personas`;
+    return `${guestLabel} • ${peopleLabel}`;
+  };
+
+  const createRoomCard = (titleText, guests, peopleCount, extraClass = '') => {
+    const card = document.createElement('article');
+    card.className = `guest-room-card${extraClass ? ` ${extraClass}` : ''}`;
+
+    const title = document.createElement('h4');
+    title.className = 'guest-room-card__title';
+    title.textContent = titleText;
+
+    const meta = document.createElement('p');
+    meta.className = 'guest-room-card__meta';
+    meta.textContent = formatMeta(guests.length, peopleCount);
+
+    const list = document.createElement('ul');
+    list.className = 'guest-room-card__list';
+
+    guests
+      .slice()
+      .sort((firstGuest, secondGuest) =>
+        firstGuest.name.localeCompare(secondGuest.name, 'es', { sensitivity: 'base' }),
+      )
+      .forEach((guest) => {
+        const item = document.createElement('li');
+        item.className = 'guest-room-card__item';
+
+        const name = document.createElement('span');
+        name.className = 'guest-room-card__guest';
+        name.textContent = guest.name;
+
+        const detailsParts = [];
+        const plus = Math.max(0, guest.plusOnes || 0);
+
+        if (plus > 0) {
+          detailsParts.push(`+${plus}`);
+        }
+
+        if (guest.rsvp && RSVP_LABELS[guest.rsvp]) {
+          detailsParts.push(RSVP_LABELS[guest.rsvp]);
+        }
+
+        if (guest.group) {
+          detailsParts.push(`Grupo: ${guest.group}`);
+        }
+
+        if (detailsParts.length) {
+          const details = document.createElement('span');
+          details.className = 'guest-room-card__details';
+          details.textContent = detailsParts.join(' • ');
+          item.append(name, details);
+        } else {
+          item.append(name);
+        }
+
+        list.append(item);
+      });
+
+    card.append(title, meta, list);
+    guestRoomsGrid.append(card);
+  };
+
+  sortedRooms.forEach(([roomName, info]) => {
+    createRoomCard(roomName, info.guests, info.totalPeople);
+  });
+
+  if (unassigned.length) {
+    const guests = unassigned.map((entry) => entry.guest);
+    const totalPeople = unassigned.reduce((sum, entry) => sum + entry.totalPeople, 0);
+    createRoomCard('Sin asignar', guests, totalPeople, 'guest-room-card--unassigned');
+  }
+};
+
 const updateGuestGroupFilter = () => {
   if (!guestGroupFilter) {
     return;
@@ -2266,6 +2416,48 @@ const updateGuestGroupFilter = () => {
   }
 };
 
+const updateGuestRoomOptions = () => {
+  const rooms = Array.from(
+    new Set(
+      guestsData
+        .map((guest) => (typeof guest.room === 'string' ? guest.room.trim() : ''))
+        .filter((room) => Boolean(room)),
+    ),
+  ).sort((first, second) => first.localeCompare(second, 'es', { sensitivity: 'base' }));
+
+  if (guestRoomFilter) {
+    const currentValue = guestRoomFilter.value;
+
+    Array.from(guestRoomFilter.options)
+      .filter((option) => option.value && option.value !== '__unassigned')
+      .forEach((option) => option.remove());
+
+    rooms.forEach((room) => {
+      const option = document.createElement('option');
+      option.value = room;
+      option.textContent = room;
+      guestRoomFilter.append(option);
+    });
+
+    if (currentValue && currentValue !== '__unassigned' && !rooms.includes(currentValue)) {
+      guestRoomFilter.value = '';
+      guestFiltersState.room = '';
+    } else if (currentValue) {
+      guestRoomFilter.value = currentValue;
+    }
+  }
+
+  if (guestRoomDatalist) {
+    guestRoomDatalist.innerHTML = '';
+
+    rooms.forEach((room) => {
+      const option = document.createElement('option');
+      option.value = room;
+      guestRoomDatalist.append(option);
+    });
+  }
+};
+
 const resetGuestForm = () => {
   if (!guestForm) {
     return;
@@ -2284,6 +2476,10 @@ const resetGuestForm = () => {
   if (guestPlusInput) {
     guestPlusInput.value = '0';
   }
+
+  if (guestRoomInput) {
+    guestRoomInput.value = '';
+  }
 };
 
 const handleGuestFormSubmit = (event) => {
@@ -2297,6 +2493,7 @@ const handleGuestFormSubmit = (event) => {
     name: guestNameInput ? guestNameInput.value : '',
     side: guestSideSelect ? guestSideSelect.value : 'ambos',
     group: guestGroupInput ? guestGroupInput.value : '',
+    room: guestRoomInput ? guestRoomInput.value : '',
     rsvp: guestRsvpSelect ? guestRsvpSelect.value : 'pending',
     plusOnes: guestPlusInput ? Number.parseInt(guestPlusInput.value, 10) || 0 : 0,
     contact: guestContactInput ? guestContactInput.value : '',
@@ -2345,6 +2542,8 @@ const handleGuestListChange = (event) => {
     changes = { rsvp: target.value };
   } else if (target.matches('.guest-card__plus')) {
     changes = { plusOnes: Number.parseInt(target.value, 10) || 0 };
+  } else if (target.matches('.guest-card__room')) {
+    changes = { room: target.value };
   } else if (target.matches('.guest-card__contact')) {
     changes = { contact: target.value };
   } else if (target.matches('.guest-card__dietary')) {
@@ -2418,6 +2617,11 @@ const handleGuestGroupFilterChange = (event) => {
   renderGuestList();
 };
 
+const handleGuestRoomFilterChange = (event) => {
+  guestFiltersState.room = event.target.value;
+  renderGuestList();
+};
+
 const downloadCsv = (content, filename) => {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -2464,8 +2668,10 @@ const initializeGuestSection = () => {
     guestsData = guests;
     guestRawRecords = raw;
     updateGuestGroupFilter();
+    updateGuestRoomOptions();
     renderGuestSummary();
     renderGuestList();
+    renderGuestRooms();
   });
 
   guestsStore.init();
@@ -2482,6 +2688,10 @@ const initializeGuestSection = () => {
 
   if (guestGroupFilter) {
     guestGroupFilter.addEventListener('change', handleGuestGroupFilterChange);
+  }
+
+  if (guestRoomFilter) {
+    guestRoomFilter.addEventListener('change', handleGuestRoomFilterChange);
   }
 
   guestList.addEventListener('change', handleGuestListChange);
