@@ -5063,7 +5063,8 @@ const createVenueTableRow = (venue) => {
   row.dataset.id = venue.id;
 
   const nameCell = document.createElement('td');
-  nameCell.className = 'venue-table__name';
+  nameCell.className = 'venue-table__cell venue-table__cell--name';
+  nameCell.dataset.label = 'Nombre';
   nameCell.textContent = venue.name;
   if (venue.address) {
     const address = document.createElement('div');
@@ -5074,6 +5075,8 @@ const createVenueTableRow = (venue) => {
   row.append(nameCell);
 
   const capacityCell = document.createElement('td');
+  capacityCell.className = 'venue-table__cell venue-table__cell--metric';
+  capacityCell.dataset.label = 'Capacidad';
   const capacityInput = document.createElement('input');
   capacityInput.type = 'number';
   capacityInput.min = '0';
@@ -5090,6 +5093,8 @@ const createVenueTableRow = (venue) => {
   row.append(capacityCell);
 
   const priceCell = document.createElement('td');
+  priceCell.className = 'venue-table__cell venue-table__cell--metric';
+  priceCell.dataset.label = 'Precio';
   const priceInput = document.createElement('input');
   priceInput.type = 'number';
   priceInput.min = '0';
@@ -5106,6 +5111,8 @@ const createVenueTableRow = (venue) => {
   row.append(priceCell);
 
   const statusCell = document.createElement('td');
+  statusCell.className = 'venue-table__cell venue-table__cell--status';
+  statusCell.dataset.label = 'Estado';
   const statusSelect = document.createElement('select');
   statusSelect.className = 'venue-table__status';
   statusSelect.dataset.action = 'status-select';
@@ -5121,6 +5128,8 @@ const createVenueTableRow = (venue) => {
   row.append(statusCell);
 
   const dateCell = document.createElement('td');
+  dateCell.className = 'venue-table__cell venue-table__cell--date';
+  dateCell.dataset.label = 'Fecha';
   const dateInput = document.createElement('input');
   dateInput.type = 'date';
   dateInput.className = 'venue-table__quick-input';
@@ -5133,22 +5142,28 @@ const createVenueTableRow = (venue) => {
   const shouldShowLegacyNotes = !venue.pros && !venue.cons && venue.notes;
 
   const prosCell = document.createElement('td');
-  prosCell.className = 'venue-table__pros';
+  prosCell.className = 'venue-table__cell venue-table__cell--text venue-table__pros';
+  prosCell.dataset.label = 'Pros';
   prosCell.textContent =
     venue.pros || (shouldShowLegacyNotes ? venue.notes : '') || '—';
   row.append(prosCell);
 
   const consCell = document.createElement('td');
-  consCell.className = 'venue-table__cons';
+  consCell.className = 'venue-table__cell venue-table__cell--text venue-table__cons';
+  consCell.dataset.label = 'Contras';
   consCell.textContent = venue.cons || '—';
   row.append(consCell);
 
   const contactCell = document.createElement('td');
+  contactCell.className = 'venue-table__cell venue-table__cell--text';
+  contactCell.dataset.label = 'Contacto';
   contactCell.textContent = venue.contact || '—';
   row.append(contactCell);
 
   const actionsCell = document.createElement('td');
-  actionsCell.className = 'venue-table__actions';
+  actionsCell.className =
+    'venue-table__cell venue-table__cell--actions venue-table__actions';
+  actionsCell.dataset.label = 'Acciones';
 
   const favoriteButton = createVenueTableButton('Favorito', 'toggle-favorite', {
     isActive: venue.status === 'favorito',
@@ -5222,6 +5237,8 @@ const renderVenueTable = (items) => {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'venue-table__empty';
     const cell = document.createElement('td');
+    cell.className = 'venue-table__cell venue-table__cell--empty';
+    cell.dataset.label = '';
     cell.colSpan = 9;
     cell.textContent = venuesData.length
       ? 'No hay lugares que coincidan con los filtros.'
