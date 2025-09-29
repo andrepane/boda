@@ -805,6 +805,22 @@ body {
   gap: 0.35rem;
 }
 
+.venues-form__proscons {
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.venues-form__proscons .venues-form__column {
+  display: grid;
+  gap: 0.35rem;
+}
+
+@media (min-width: 720px) {
+  .venues-form__proscons {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .form-hint {
   margin: 0;
   font-size: 0.75rem;
@@ -1778,6 +1794,43 @@ body {
   margin: 0;
 }
 
+.venue-card__proscons {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.venue-card__proscons-item {
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(98, 86, 255, 0.16);
+  background: rgba(98, 86, 255, 0.06);
+}
+
+.venue-card__proscons-item--pros {
+  border-color: rgba(94, 201, 157, 0.35);
+  background: rgba(94, 201, 157, 0.12);
+}
+
+.venue-card__proscons-item--cons {
+  border-color: rgba(238, 84, 110, 0.28);
+  background: rgba(238, 84, 110, 0.1);
+}
+
+.venue-card__proscons-title {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.venue-card__proscons-text {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .venue-card__empty {
   grid-column: 1 / -1;
   text-align: center;
@@ -1899,6 +1952,14 @@ body {
   border-radius: 18px;
   border: 1px dashed rgba(98, 86, 255, 0.28);
   background: rgba(255, 255, 255, 0.85);
+}
+
+.venue-table__pros,
+.venue-table__cons {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  white-space: normal;
 }
 
 .venue-table__notes {
