@@ -3672,7 +3672,8 @@ const venueCapacityInput = document.getElementById('venue-capacity');
 const venuePriceInput = document.getElementById('venue-price');
 const venueDateInput = document.getElementById('venue-date');
 const venueContactInput = document.getElementById('venue-contact');
-const venueNotesInput = document.getElementById('venue-notes');
+const venueProsInput = document.getElementById('venue-pros');
+const venueConsInput = document.getElementById('venue-cons');
 const venueStatusSelect = document.getElementById('venue-status');
 
 const venuesGrid = document.getElementById('venues-grid');
@@ -3809,6 +3810,28 @@ const formatVenueDate = (value) => {
   }).format(date);
 };
 
+const buildLegacyVenueNotes = (pros, cons, legacyNotes = '') => {
+  const trimmedLegacy = sanitizeEntityText(legacyNotes);
+
+  if (trimmedLegacy) {
+    return trimmedLegacy;
+  }
+
+  const safePros = sanitizeEntityText(pros);
+  const safeCons = sanitizeEntityText(cons);
+  const parts = [];
+
+  if (safePros) {
+    parts.push(`Pros: ${safePros}`);
+  }
+
+  if (safeCons) {
+    parts.push(`Contras: ${safeCons}`);
+  }
+
+  return parts.join(' | ');
+};
+
 const normalizeVenueRecord = (id, record) => {
   if (!record || typeof record !== 'object') {
     return null;
@@ -3829,6 +3852,13 @@ const normalizeVenueRecord = (id, record) => {
     ? record.photos.map((photo) => sanitizeEntityText(photo)).filter((photo) => Boolean(photo))
     : [];
 
+  const legacyNotes = sanitizeEntityText(record.notes);
+  const pros = sanitizeEntityText(record.pros);
+  const cons = sanitizeEntityText(record.cons);
+  const displayPros = pros || (!pros && !cons ? legacyNotes : pros);
+  const displayCons = cons;
+  const combinedNotes = buildLegacyVenueNotes(displayPros, displayCons, legacyNotes);
+
   return {
     id,
     name,
@@ -3838,7 +3868,9 @@ const normalizeVenueRecord = (id, record) => {
     price,
     availableDate,
     contact: sanitizeEntityText(record.contact),
-    notes: sanitizeEntityText(record.notes),
+    pros: displayPros,
+    cons: displayCons,
+    notes: combinedNotes,
     status: normalizeVenueStatusValue(record.status),
     photos,
     createdAt: toTimestamp(record.createdAt),
@@ -4013,6 +4045,9 @@ const createVenueEditor = () => {
   let lastActiveElement = null;
   let currentVenueId = null;
   let isSaving = false;
+  let lastProsValue = '';
+  let lastConsValue = '';
+  let lastLegacyNotes = '';
 
   const resetFormValues = () => {
     if (!form || !fields) {
@@ -4033,6 +4068,10 @@ const createVenueEditor = () => {
 
       input.value = '';
     });
+
+    lastProsValue = '';
+    lastConsValue = '';
+    lastLegacyNotes = '';
   };
 
   const setSavingState = (saving) => {
@@ -4099,7 +4138,11 @@ const createVenueEditor = () => {
     const priceValue = normalizeVenuePriceValue(fields.price ? fields.price.value : '');
     const dateValue = normalizeVenueDateValue(fields.date ? fields.date.value : '');
     const contact = sanitizeEntityText(fields.contact ? fields.contact.value : '');
-    const notes = sanitizeEntityText(fields.notes ? fields.notes.value : '');
+    const pros = sanitizeEntityText(fields.pros ? fields.pros.value : '');
+    const cons = sanitizeEntityText(fields.cons ? fields.cons.value : '');
+    const legacySource =
+      pros === lastProsValue && cons === lastConsValue ? lastLegacyNotes : '';
+    const notes = buildLegacyVenueNotes(pros, cons, legacySource);
     const statusValue = normalizeVenueStatusValue(
       fields.status ? fields.status.value : VENUE_DEFAULT_STATUS,
     );
@@ -4123,12 +4166,19 @@ const createVenueEditor = () => {
     if (fields.contact) {
       fields.contact.value = contact;
     }
-    if (fields.notes) {
-      fields.notes.value = notes;
+    if (fields.pros) {
+      fields.pros.value = pros;
+    }
+    if (fields.cons) {
+      fields.cons.value = cons;
     }
     if (fields.status) {
       fields.status.value = statusValue;
     }
+
+    lastProsValue = pros;
+    lastConsValue = cons;
+    lastLegacyNotes = notes;
 
     setSavingState(true);
 
@@ -4140,6 +4190,8 @@ const createVenueEditor = () => {
       price: priceValue,
       availableDate: dateValue || '',
       contact,
+      pros,
+      cons,
       notes,
       status: statusValue,
     });
@@ -4279,12 +4331,19 @@ const createVenueEditor = () => {
     contactField.control.type = 'text';
     fieldsWrapper.append(contactField.field);
 
-    const notesControl = document.createElement('textarea');
-    notesControl.rows = 3;
-    notesControl.classList.add('form-control--textarea');
-    const notesField = createField('venue-editor-notes', 'Notas', notesControl);
-    notesField.field.classList.add('venue-editor__field--full', 'form-field--full');
-    fieldsWrapper.append(notesField.field);
+    const prosControl = document.createElement('textarea');
+    prosControl.rows = 3;
+    prosControl.classList.add('form-control--textarea');
+    const prosField = createField('venue-editor-pros', 'Pros', prosControl);
+    prosField.field.classList.add('venue-editor__field--full', 'form-field--full');
+    fieldsWrapper.append(prosField.field);
+
+    const consControl = document.createElement('textarea');
+    consControl.rows = 3;
+    consControl.classList.add('form-control--textarea');
+    const consField = createField('venue-editor-cons', 'Contras', consControl);
+    consField.field.classList.add('venue-editor__field--full', 'form-field--full');
+    fieldsWrapper.append(consField.field);
 
     const statusControl = document.createElement('select');
     VENUE_STATUS_OPTIONS.forEach((option) => {
@@ -4326,7 +4385,8 @@ const createVenueEditor = () => {
       price: priceField.control,
       date: dateField.control,
       contact: contactField.control,
-      notes: notesField.control,
+      pros: prosField.control,
+      cons: consField.control,
       status: statusField.control,
     };
 
@@ -4400,12 +4460,19 @@ const createVenueEditor = () => {
     if (fields.contact) {
       fields.contact.value = venue.contact || '';
     }
-    if (fields.notes) {
-      fields.notes.value = venue.notes || '';
+    if (fields.pros) {
+      fields.pros.value = venue.pros || '';
+    }
+    if (fields.cons) {
+      fields.cons.value = venue.cons || '';
     }
     if (fields.status) {
       fields.status.value = normalizeVenueStatusValue(venue.status);
     }
+
+    lastProsValue = venue.pros || '';
+    lastConsValue = venue.cons || '';
+    lastLegacyNotes = venue.notes || '';
 
     if (subtitleElement) {
       subtitleElement.textContent = venue.name || '';
@@ -4582,8 +4649,12 @@ const applyVenueFilters = (items) => {
     if (searchTerm) {
       const nameMatch = venue.name.toLowerCase().includes(searchTerm);
       const addressMatch = (venue.address || '').toLowerCase().includes(searchTerm);
+      const prosMatch = (venue.pros || '').toLowerCase().includes(searchTerm);
+      const consMatch = (venue.cons || '').toLowerCase().includes(searchTerm);
+      const legacyNotesMatch =
+        !venue.pros && !venue.cons && (venue.notes || '').toLowerCase().includes(searchTerm);
 
-      if (!nameMatch && !addressMatch) {
+      if (!nameMatch && !addressMatch && !prosMatch && !consMatch && !legacyNotesMatch) {
         return false;
       }
     }
@@ -4814,11 +4885,40 @@ const createVenueCard = (venue) => {
     info.append(contact);
   }
 
-  if (venue.notes) {
-    const notes = document.createElement('p');
-    notes.className = 'venue-card__notes';
-    notes.textContent = venue.notes;
-    info.append(notes);
+  const shouldShowLegacyNotes = !venue.pros && !venue.cons && venue.notes;
+  if (venue.pros || venue.cons || shouldShowLegacyNotes) {
+    const prosCons = document.createElement('div');
+    prosCons.className = 'venue-card__proscons';
+
+    const createProsConsItem = (label, text, modifier) => {
+      const item = document.createElement('div');
+      item.className = `venue-card__proscons-item venue-card__proscons-item--${modifier}`;
+
+      const title = document.createElement('strong');
+      title.className = 'venue-card__proscons-title';
+      title.textContent = label;
+
+      const paragraph = document.createElement('p');
+      paragraph.className = 'venue-card__proscons-text';
+      paragraph.textContent = text;
+
+      item.append(title, paragraph);
+      return item;
+    };
+
+    if (venue.pros) {
+      prosCons.append(createProsConsItem('Pros', venue.pros, 'pros'));
+    }
+
+    if (venue.cons) {
+      prosCons.append(createProsConsItem('Contras', venue.cons, 'cons'));
+    }
+
+    if (shouldShowLegacyNotes) {
+      prosCons.append(createProsConsItem('Notas', venue.notes, 'notes'));
+    }
+
+    info.append(prosCons);
   }
 
   if (info.childElementCount > 0) {
@@ -5030,14 +5130,21 @@ const createVenueTableRow = (venue) => {
   dateCell.append(dateInput);
   row.append(dateCell);
 
+  const shouldShowLegacyNotes = !venue.pros && !venue.cons && venue.notes;
+
+  const prosCell = document.createElement('td');
+  prosCell.className = 'venue-table__pros';
+  prosCell.textContent =
+    venue.pros || (shouldShowLegacyNotes ? venue.notes : '') || '—';
+  row.append(prosCell);
+
+  const consCell = document.createElement('td');
+  consCell.className = 'venue-table__cons';
+  consCell.textContent = venue.cons || '—';
+  row.append(consCell);
+
   const contactCell = document.createElement('td');
   contactCell.textContent = venue.contact || '—';
-  if (venue.notes) {
-    const notes = document.createElement('div');
-    notes.className = 'venue-table__notes';
-    notes.textContent = venue.notes;
-    contactCell.append(notes);
-  }
   row.append(contactCell);
 
   const actionsCell = document.createElement('td');
@@ -5115,7 +5222,7 @@ const renderVenueTable = (items) => {
     const emptyRow = document.createElement('tr');
     emptyRow.className = 'venue-table__empty';
     const cell = document.createElement('td');
-    cell.colSpan = 7;
+    cell.colSpan = 9;
     cell.textContent = venuesData.length
       ? 'No hay lugares que coincidan con los filtros.'
       : 'Añade lugares para comenzar.';
@@ -5313,7 +5420,12 @@ const handleVenueFormSubmit = (event) => {
     price: venuePriceInput ? venuePriceInput.value : '',
     availableDate: venueDateInput ? venueDateInput.value : '',
     contact: venueContactInput ? venueContactInput.value : '',
-    notes: venueNotesInput ? venueNotesInput.value : '',
+    pros: venueProsInput ? venueProsInput.value : '',
+    cons: venueConsInput ? venueConsInput.value : '',
+    notes: buildLegacyVenueNotes(
+      venueProsInput ? venueProsInput.value : '',
+      venueConsInput ? venueConsInput.value : '',
+    ),
     status: venueStatusSelect ? venueStatusSelect.value : VENUE_DEFAULT_STATUS,
   };
 

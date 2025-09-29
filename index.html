@@ -472,14 +472,26 @@
                   />
                 </div>
 
-                <div class="form-field form-field--full">
-                  <label class="form-label" for="venue-notes">Notas</label>
-                  <textarea
-                    id="venue-notes"
-                    class="form-control form-control--textarea"
-                    rows="2"
-                    placeholder="Pros, contras u observaciones"
-                  ></textarea>
+                <div class="form-field form-field--full venues-form__proscons">
+                  <div class="venues-form__column">
+                    <label class="form-label" for="venue-pros">Pros</label>
+                    <textarea
+                      id="venue-pros"
+                      class="form-control form-control--textarea"
+                      rows="2"
+                      placeholder="Puntos fuertes del lugar"
+                    ></textarea>
+                  </div>
+
+                  <div class="venues-form__column">
+                    <label class="form-label" for="venue-cons">Contras</label>
+                    <textarea
+                      id="venue-cons"
+                      class="form-control form-control--textarea"
+                      rows="2"
+                      placeholder="Aspectos a mejorar o dudas"
+                    ></textarea>
+                  </div>
                 </div>
 
                 <div class="form-field">
@@ -611,6 +623,8 @@
                         <th scope="col">Precio</th>
                         <th scope="col">Estado</th>
                         <th scope="col">Fecha</th>
+                        <th scope="col">Pros</th>
+                        <th scope="col">Contras</th>
                         <th scope="col">Contacto</th>
                         <th scope="col">Acciones</th>
                       </tr>
@@ -1704,6 +1718,28 @@
         return `${String(year).padStart(4, "0")}-${normalizedMonth}-${normalizedDay}`;
       };
 
+      const buildVenueLegacyNotes = (pros, cons, legacy = "") => {
+        const legacyValue = sanitizeVenueText(legacy);
+
+        if (legacyValue) {
+          return legacyValue;
+        }
+
+        const prosValue = sanitizeVenueText(pros);
+        const consValue = sanitizeVenueText(cons);
+        const parts = [];
+
+        if (prosValue) {
+          parts.push(`Pros: ${prosValue}`);
+        }
+
+        if (consValue) {
+          parts.push(`Contras: ${consValue}`);
+        }
+
+        return parts.join(" | ");
+      };
+
       const normalizeVenueMapsUrl = (value) => {
         if (typeof value !== "string") {
           return "";
@@ -1785,6 +1821,10 @@
           throw new Error("NAME_REQUIRED");
         }
 
+        const pros = sanitizeVenueText(venue?.pros);
+        const cons = sanitizeVenueText(venue?.cons);
+        const legacyNotes = buildVenueLegacyNotes(pros, cons, venue?.notes);
+
         const payload = {
           name,
           address: sanitizeVenueText(venue?.address),
@@ -1793,7 +1833,9 @@
           price: normalizeVenuePrice(venue?.price),
           availableDate: normalizeVenueDate(venue?.availableDate),
           contact: sanitizeVenueText(venue?.contact),
-          notes: sanitizeVenueText(venue?.notes),
+          pros,
+          cons,
+          notes: legacyNotes,
           status: normalizeVenueStatus(venue?.status),
           photos: normalizeVenuePhotos(venue?.photos),
           createdAt: toTimestampValue(venue?.createdAt, now),
@@ -1813,6 +1855,14 @@
 
         if (!payload.contact) {
           payload.contact = "";
+        }
+
+        if (!payload.pros) {
+          payload.pros = "";
+        }
+
+        if (!payload.cons) {
+          payload.cons = "";
         }
 
         if (!payload.notes) {
@@ -1869,8 +1919,16 @@
           updatePayload.contact = changes.contact.trim();
         }
 
+        if (typeof changes?.pros === "string") {
+          updatePayload.pros = sanitizeVenueText(changes.pros);
+        }
+
+        if (typeof changes?.cons === "string") {
+          updatePayload.cons = sanitizeVenueText(changes.cons);
+        }
+
         if (typeof changes?.notes === "string") {
-          updatePayload.notes = changes.notes.trim();
+          updatePayload.notes = sanitizeVenueText(changes.notes);
         }
 
         if (typeof changes?.status === "string") {
@@ -1914,6 +1972,8 @@
           "Fecha disponible",
           "Estado",
           "Contacto",
+          "Pros",
+          "Contras",
           "Notas",
           "Creado",
           "Actualizado",
@@ -1960,6 +2020,10 @@
           const capacityValue = normalizeVenueCapacity(venue.capacity);
           const priceValue = normalizeVenuePrice(venue.price);
 
+          const prosValue = sanitizeVenueText(venue.pros);
+          const consValue = sanitizeVenueText(venue.cons);
+          const notesValue = buildVenueLegacyNotes(prosValue, consValue, venue.notes);
+
           rows.push([
             venue.id ?? "",
             sanitizeVenueText(venue.name),
@@ -1970,7 +2034,9 @@
             normalizeVenueDate(venue.availableDate),
             normalizeVenueStatus(venue.status),
             sanitizeVenueText(venue.contact),
-            sanitizeVenueText(venue.notes),
+            prosValue,
+            consValue,
+            notesValue,
             formatCsvDate(venue.createdAt),
             formatCsvDate(venue.updatedAt),
             sanitizeVenueText(venue.createdBy),
