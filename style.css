@@ -2438,14 +2438,68 @@ body.idea-image-viewer-open {
 }
 
 .budget-usage {
-  font-weight: 600;
+  font-weight: 400;
 }
 
-.budget-usage--under {
+.budget-usage__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.2rem;
+}
+
+.budget-usage__line {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.budget-usage__amount--actual {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.budget-usage__amount--estimate {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.budget-usage__amount--estimate-only {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.budget-usage__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(31, 35, 48, 0.08);
+  color: var(--text-primary);
+}
+
+.budget-usage__badge--actual {
+  background: rgba(94, 201, 142, 0.2);
   color: var(--priority-low-text);
 }
 
-.budget-usage--over {
+.budget-usage__badge--estimate {
+  background: rgba(98, 86, 255, 0.12);
+  color: var(--brand-dark);
+}
+
+.budget-usage--under .budget-usage__amount--actual {
+  color: var(--priority-low-text);
+}
+
+.budget-usage--over .budget-usage__amount--actual {
   color: var(--priority-high-text);
 }
 

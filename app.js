@@ -6154,6 +6154,73 @@ const applyBudgetUsageStyles = (cell, item) => {
   cell.classList.toggle('budget-usage--under', withinBudget);
 };
 
+const renderBudgetUsageCellContent = (cell, item) => {
+  if (!cell) {
+    return;
+  }
+
+  cell.textContent = '';
+
+  const hasActual = Number.isFinite(item.act);
+  const hasEstimate = Number.isFinite(item.est);
+
+  if (!hasActual && !hasEstimate) {
+    cell.textContent = '—';
+    return;
+  }
+
+  const content = document.createElement('div');
+  content.className = 'budget-usage__content';
+
+  if (hasActual) {
+    const actualLine = document.createElement('div');
+    actualLine.className = 'budget-usage__line budget-usage__line--actual';
+
+    const actualAmount = document.createElement('strong');
+    actualAmount.className = 'budget-usage__amount budget-usage__amount--actual';
+    actualAmount.textContent = formatMoney(item.act);
+
+    const actualBadge = document.createElement('span');
+    actualBadge.className = 'budget-usage__badge budget-usage__badge--actual';
+    actualBadge.textContent = 'Real';
+
+    actualLine.append(actualAmount, actualBadge);
+    content.append(actualLine);
+
+    if (hasEstimate) {
+      const estimateLine = document.createElement('div');
+      estimateLine.className = 'budget-usage__line budget-usage__line--estimate';
+
+      const estimateAmount = document.createElement('span');
+      estimateAmount.className = 'budget-usage__amount budget-usage__amount--estimate';
+      estimateAmount.textContent = formatMoney(item.est);
+
+      const estimateBadge = document.createElement('span');
+      estimateBadge.className = 'budget-usage__badge budget-usage__badge--estimate';
+      estimateBadge.textContent = 'Est.';
+
+      estimateLine.append(estimateAmount, estimateBadge);
+      content.append(estimateLine);
+    }
+  } else if (hasEstimate) {
+    const estimateLine = document.createElement('div');
+    estimateLine.className = 'budget-usage__line budget-usage__line--estimate-only';
+
+    const estimateAmount = document.createElement('span');
+    estimateAmount.className = 'budget-usage__amount budget-usage__amount--estimate-only';
+    estimateAmount.textContent = formatMoney(item.est);
+
+    const estimateBadge = document.createElement('span');
+    estimateBadge.className = 'budget-usage__badge budget-usage__badge--estimate';
+    estimateBadge.textContent = 'Est.';
+
+    estimateLine.append(estimateAmount, estimateBadge);
+    content.append(estimateLine);
+  }
+
+  cell.append(content);
+};
+
 const patchBudgetStateItem = (itemId, changes) => {
   let updatedItem = null;
 
@@ -6201,8 +6268,7 @@ const createBudgetRow = (item) => {
 
   const usageCell = document.createElement('td');
   usageCell.className = 'budget-table__cell budget-table__cell--number budget-usage';
-  const usageValue = effectiveAmount(item);
-  usageCell.textContent = usageValue === null ? '—' : formatMoney(usageValue);
+  renderBudgetUsageCellContent(usageCell, item);
   applyBudgetUsageStyles(usageCell, item);
 
   const paidCell = document.createElement('td');
@@ -6365,8 +6431,7 @@ const handleBudgetTableChange = (event) => {
       const usageCell = row.querySelector('.budget-usage');
 
       if (usageCell) {
-        const usageValue = effectiveAmount(updatedItem);
-        usageCell.textContent = usageValue === null ? '—' : formatMoney(usageValue);
+        renderBudgetUsageCellContent(usageCell, updatedItem);
         applyBudgetUsageStyles(usageCell, updatedItem);
       }
 
