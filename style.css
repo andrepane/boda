@@ -2421,7 +2421,13 @@ body.idea-image-viewer-open {
 }
 
 .budget-row__actual {
-  max-width: 140px;
+  min-width: 120px;
+}
+
+@media (max-width: 720px) {
+  .budget-row__actual {
+    min-width: 100%;
+  }
 }
 
 .budget-row__paid-label {
