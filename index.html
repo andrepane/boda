@@ -843,7 +843,7 @@
                   <strong id="budget-target-value" class="summary__value">0</strong>
                 </div>
                 <div class="budget-summary__item">
-                  <span class="summary__label">Estimado</span>
+                  <span class="summary__label">Estimado sin real</span>
                   <strong id="budget-estimated" class="summary__value">0</strong>
                 </div>
                 <div class="budget-summary__item">
@@ -851,16 +851,12 @@
                   <strong id="budget-actual" class="summary__value">0</strong>
                 </div>
                 <div class="budget-summary__item">
-                  <span class="summary__label">Pagado</span>
-                  <strong id="budget-paid" class="summary__value">0</strong>
+                  <span class="summary__label">Total</span>
+                  <strong id="budget-total" class="summary__value">0</strong>
                 </div>
                 <div class="budget-summary__item">
                   <span class="summary__label">% Pagado</span>
                   <strong id="budget-paid-percent" class="summary__value">0%</strong>
-                </div>
-                <div class="budget-summary__item">
-                  <span class="summary__label">Diferencia</span>
-                  <strong id="budget-diff" class="summary__value">0</strong>
                 </div>
               </div>
 
@@ -953,13 +949,9 @@
                       <th scope="col">Categoría</th>
                       <th scope="col">Estimado</th>
                       <th scope="col">Real</th>
-                      <th scope="col">
-                        <span aria-hidden="true">Δ</span>
-                        <span class="visually-hidden">Diferencia</span>
-                      </th>
+                      <th scope="col">Usado</th>
                       <th scope="col">Pagado</th>
                       <th scope="col">Fecha</th>
-                      <th scope="col">Proveedor</th>
                       <th scope="col" class="visually-hidden">Acciones</th>
                     </tr>
                   </thead>
@@ -2197,19 +2189,32 @@
       }
 
       const normalizeAmount = (value) => {
+        if (value === null || typeof value === "undefined") {
+          return null;
+        }
+
         if (typeof value === "number" && Number.isFinite(value)) {
-          return Number.parseFloat(value.toFixed(2));
+          return Math.max(0, Number.parseFloat(value.toFixed(2)));
         }
 
         if (typeof value === "string") {
-          const cleaned = value.replace(/,/g, ".");
-          const parsed = Number.parseFloat(cleaned);
-          if (Number.isFinite(parsed)) {
-            return Number.parseFloat(parsed.toFixed(2));
+          const trimmed = value.trim();
+
+          if (!trimmed) {
+            return null;
           }
+
+          const cleaned = trimmed.replace(/,/g, ".");
+          const parsed = Number.parseFloat(cleaned);
+
+          if (Number.isFinite(parsed)) {
+            return Math.max(0, Number.parseFloat(parsed.toFixed(2)));
+          }
+
+          return null;
         }
 
-        return 0;
+        return null;
       };
 
       export async function setBudgetTarget(target) {
@@ -2217,7 +2222,7 @@
         ensureSync();
 
         const value = normalizeAmount(target);
-        const payload = { target: value, updatedAt: Date.now() };
+        const payload = { target: typeof value === "number" ? value : 0, updatedAt: Date.now() };
 
         try {
           await update(ref(db, budgetMetaPath), payload);
@@ -2240,11 +2245,14 @@
           throw new Error("TITLE_REQUIRED");
         }
 
+        const estimated = normalizeAmount(item?.est);
+        const actual = normalizeAmount(item?.act);
+
         const payload = {
           title,
           category: sanitizeText(item?.category) || "General",
-          est: normalizeAmount(item?.est),
-          act: normalizeAmount(item?.act),
+          est: typeof estimated === "number" ? estimated : 0,
+          act: actual,
           paid: Boolean(item?.paid),
           dueDate: sanitizeText(item?.dueDate),
           provider: sanitizeText(item?.provider),
@@ -2278,7 +2286,8 @@
         }
 
         if (Object.prototype.hasOwnProperty.call(changes ?? {}, "est")) {
-          payload.est = normalizeAmount(changes.est);
+          const estimated = normalizeAmount(changes.est);
+          payload.est = typeof estimated === "number" ? estimated : null;
         }
 
         if (Object.prototype.hasOwnProperty.call(changes ?? {}, "act")) {

@@ -2437,16 +2437,16 @@ body.idea-image-viewer-open {
   height: 18px;
 }
 
-.budget-diff {
+.budget-usage {
   font-weight: 600;
 }
 
-.budget-diff--positive {
+.budget-usage--under {
   color: var(--priority-low-text);
 }
 
-.budget-diff--negative {
-  color: #d53d57;
+.budget-usage--over {
+  color: var(--priority-high-text);
 }
 
 .budget-summary__item {
