@@ -5739,9 +5739,8 @@ const budgetTargetInput = document.getElementById('budget-target');
 const budgetTargetValue = document.getElementById('budget-target-value');
 const budgetEstimatedValue = document.getElementById('budget-estimated');
 const budgetActualValue = document.getElementById('budget-actual');
-const budgetPaidValue = document.getElementById('budget-paid');
+const budgetTotalValue = document.getElementById('budget-total');
 const budgetPaidPercentValue = document.getElementById('budget-paid-percent');
-const budgetDiffValue = document.getElementById('budget-diff');
 
 const budgetItemForm = document.getElementById('budget-item-form');
 const budgetTitleInput = document.getElementById('budget-title');
@@ -5757,18 +5756,46 @@ const budgetTableBody = document.getElementById('budget-table-body');
 
 const toAmount = (value) => {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return Number.parseFloat(value.toFixed(2));
+    return Math.max(0, Number.parseFloat(value.toFixed(2)));
   }
 
   if (typeof value === 'string') {
-    const cleaned = value.replace(/,/g, '.');
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const cleaned = trimmed.replace(/,/g, '.');
     const parsed = Number.parseFloat(cleaned);
+
     if (Number.isFinite(parsed)) {
-      return Number.parseFloat(parsed.toFixed(2));
+      return Math.max(0, Number.parseFloat(parsed.toFixed(2)));
     }
   }
 
-  return 0;
+  return null;
+};
+
+const parseAmountInput = (value, { allowNull = true } = {}) => {
+  if (typeof value !== 'string') {
+    return allowNull ? null : 0;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return allowNull ? null : 0;
+  }
+
+  const cleaned = trimmed.replace(/,/g, '.');
+  const parsed = Number.parseFloat(cleaned);
+
+  if (!Number.isFinite(parsed)) {
+    return allowNull ? null : 0;
+  }
+
+  return Math.max(0, Number.parseFloat(parsed.toFixed(2)));
 };
 
 const normalizeBudgetItem = (id, record) => {
@@ -5985,9 +6012,52 @@ const currencyFormatter = new Intl.NumberFormat('es-ES', {
   maximumFractionDigits: 2,
 });
 
-const formatCurrency = (value) => {
+const formatMoney = (value) => {
   const numeric = typeof value === 'number' && Number.isFinite(value) ? value : 0;
   return currencyFormatter.format(numeric);
+};
+
+const effectiveAmount = (item) => {
+  if (item && Number.isFinite(item.act)) {
+    return item.act;
+  }
+
+  if (item && Number.isFinite(item.est)) {
+    return item.est;
+  }
+
+  return null;
+};
+
+const computeTotals = (items) => {
+  let estimatedWithoutActual = 0;
+  let actual = 0;
+  let paidCount = 0;
+
+  items.forEach((item) => {
+    const hasActual = Number.isFinite(item.act);
+    const hasEstimate = Number.isFinite(item.est);
+
+    if (hasActual) {
+      actual += item.act;
+    } else if (hasEstimate) {
+      estimatedWithoutActual += item.est;
+    }
+
+    if (item.paid) {
+      paidCount += 1;
+    }
+  });
+
+  const total = actual + estimatedWithoutActual;
+
+  return {
+    estimatedWithoutActual,
+    actual,
+    total,
+    paidCount,
+    totalCount: items.length,
+  };
 };
 
 const formatBudgetDate = (value) => {
@@ -6003,46 +6073,27 @@ const formatBudgetDate = (value) => {
 };
 
 const renderBudgetSummary = () => {
-  const totalEstimated = budgetState.items.reduce(
-    (sum, item) => sum + (Number.isFinite(item.est) ? item.est : 0),
-    0,
-  );
-  const totalActual = budgetState.items.reduce(
-    (sum, item) => sum + (Number.isFinite(item.act) ? item.act : 0),
-    0,
-  );
-  const totalPaid = budgetState.items.reduce(
-    (sum, item) => sum + (item.paid ? (Number.isFinite(item.act) ? item.act : 0) : 0),
-    0,
-  );
-
-  const diff = totalActual - totalEstimated;
-  const paidPercent = totalActual > 0 ? Math.round((totalPaid / totalActual) * 100) : 0;
+  const totals = computeTotals(budgetState.items);
+  const paidPercent = totals.totalCount > 0 ? Math.round((totals.paidCount / totals.totalCount) * 100) : 0;
 
   if (budgetTargetValue) {
-    budgetTargetValue.textContent = formatCurrency(budgetState.target);
+    budgetTargetValue.textContent = formatMoney(budgetState.target);
   }
 
   if (budgetEstimatedValue) {
-    budgetEstimatedValue.textContent = formatCurrency(totalEstimated);
+    budgetEstimatedValue.textContent = formatMoney(totals.estimatedWithoutActual);
   }
 
   if (budgetActualValue) {
-    budgetActualValue.textContent = formatCurrency(totalActual);
+    budgetActualValue.textContent = formatMoney(totals.actual);
   }
 
-  if (budgetPaidValue) {
-    budgetPaidValue.textContent = formatCurrency(totalPaid);
+  if (budgetTotalValue) {
+    budgetTotalValue.textContent = formatMoney(totals.total);
   }
 
   if (budgetPaidPercentValue) {
     budgetPaidPercentValue.textContent = `${Math.max(0, Math.min(100, paidPercent))}%`;
-  }
-
-  if (budgetDiffValue) {
-    budgetDiffValue.textContent = formatCurrency(diff);
-    budgetDiffValue.classList.toggle('budget-diff--positive', diff <= 0);
-    budgetDiffValue.classList.toggle('budget-diff--negative', diff > 0);
   }
 };
 
@@ -6093,6 +6144,31 @@ const applyBudgetFilters = (items) =>
     return true;
   });
 
+const applyBudgetUsageStyles = (cell, item) => {
+  const hasActual = Number.isFinite(item.act);
+  const hasEstimate = Number.isFinite(item.est);
+  const overBudget = hasActual && hasEstimate && item.act > item.est;
+  const withinBudget = hasActual && hasEstimate && item.act <= item.est;
+
+  cell.classList.toggle('budget-usage--over', overBudget);
+  cell.classList.toggle('budget-usage--under', withinBudget);
+};
+
+const patchBudgetStateItem = (itemId, changes) => {
+  let updatedItem = null;
+
+  budgetState.items = budgetState.items.map((item) => {
+    if (item.id !== itemId) {
+      return item;
+    }
+
+    updatedItem = { ...item, ...changes };
+    return updatedItem;
+  });
+
+  return updatedItem;
+};
+
 const createBudgetRow = (item) => {
   const row = document.createElement('tr');
   row.dataset.id = item.id;
@@ -6100,6 +6176,9 @@ const createBudgetRow = (item) => {
   const titleCell = document.createElement('td');
   titleCell.className = 'budget-table__cell budget-table__cell--title';
   titleCell.textContent = item.title;
+  if (item.provider) {
+    titleCell.title = item.provider;
+  }
 
   const categoryCell = document.createElement('td');
   categoryCell.className = 'budget-table__cell';
@@ -6107,7 +6186,7 @@ const createBudgetRow = (item) => {
 
   const estimatedCell = document.createElement('td');
   estimatedCell.className = 'budget-table__cell budget-table__cell--number';
-  estimatedCell.textContent = formatCurrency(item.est);
+  estimatedCell.textContent = Number.isFinite(item.est) ? formatMoney(item.est) : '—';
 
   const actualCell = document.createElement('td');
   actualCell.className = 'budget-table__cell budget-table__cell--number';
@@ -6116,16 +6195,15 @@ const createBudgetRow = (item) => {
   actualInput.className = 'budget-row__actual';
   actualInput.min = '0';
   actualInput.step = '0.01';
-  actualInput.value = item.act ? String(item.act) : '';
+  actualInput.value = Number.isFinite(item.act) ? String(item.act) : '';
   actualInput.setAttribute('aria-label', `Importe real de ${item.title}`);
   actualCell.append(actualInput);
 
-  const diffCell = document.createElement('td');
-  diffCell.className = 'budget-table__cell budget-table__cell--number budget-diff';
-  const diff = (Number.isFinite(item.act) ? item.act : 0) - (Number.isFinite(item.est) ? item.est : 0);
-  diffCell.textContent = formatCurrency(diff);
-  diffCell.classList.toggle('budget-diff--positive', diff <= 0);
-  diffCell.classList.toggle('budget-diff--negative', diff > 0);
+  const usageCell = document.createElement('td');
+  usageCell.className = 'budget-table__cell budget-table__cell--number budget-usage';
+  const usageValue = effectiveAmount(item);
+  usageCell.textContent = usageValue === null ? '—' : formatMoney(usageValue);
+  applyBudgetUsageStyles(usageCell, item);
 
   const paidCell = document.createElement('td');
   paidCell.className = 'budget-table__cell budget-table__cell--paid';
@@ -6148,10 +6226,6 @@ const createBudgetRow = (item) => {
     dueCell.title = item.dueDate;
   }
 
-  const providerCell = document.createElement('td');
-  providerCell.className = 'budget-table__cell';
-  providerCell.textContent = item.provider || '—';
-
   const actionsCell = document.createElement('td');
   actionsCell.className = 'budget-table__cell budget-table__cell--actions';
   const deleteButton = document.createElement('button');
@@ -6166,10 +6240,9 @@ const createBudgetRow = (item) => {
     categoryCell,
     estimatedCell,
     actualCell,
-    diffCell,
+    usageCell,
     paidCell,
     dueCell,
-    providerCell,
     actionsCell,
   );
 
@@ -6190,7 +6263,7 @@ const renderBudgetTable = () => {
     emptyRow.className = 'budget-table__empty';
 
     const cell = document.createElement('td');
-    cell.colSpan = 9;
+    cell.colSpan = 8;
     cell.textContent = budgetState.items.length
       ? 'No hay elementos que coincidan con los filtros.'
       : 'Agrega tu primer gasto para seguir el presupuesto.';
@@ -6208,8 +6281,10 @@ const renderBudgetTable = () => {
 const handleBudgetTargetSubmit = (event) => {
   event.preventDefault();
 
-  const value = budgetTargetInput ? Number.parseFloat(budgetTargetInput.value) || 0 : 0;
-  const submission = budgetStore.setTarget(value);
+  const value = budgetTargetInput
+    ? parseAmountInput(budgetTargetInput.value, { allowNull: false })
+    : 0;
+  const submission = budgetStore.setTarget(value || 0);
 
   if (submission && typeof submission.catch === 'function') {
     submission.catch((error) => {
@@ -6229,8 +6304,8 @@ const handleBudgetItemSubmit = (event) => {
   const payload = {
     title: budgetTitleInput ? budgetTitleInput.value : '',
     category: budgetCategoryInput ? budgetCategoryInput.value : '',
-    est: budgetEstimateInput ? budgetEstimateInput.value : 0,
-    act: budgetActualInput ? budgetActualInput.value : 0,
+    est: parseAmountInput(budgetEstimateInput ? budgetEstimateInput.value : '', { allowNull: false }),
+    act: parseAmountInput(budgetActualInput ? budgetActualInput.value : '', { allowNull: true }),
     provider: budgetProviderInput ? budgetProviderInput.value : '',
     dueDate: budgetDateInput ? budgetDateInput.value : '',
   };
@@ -6281,7 +6356,24 @@ const handleBudgetTableChange = (event) => {
   }
 
   if (target.matches('.budget-row__actual')) {
-    const update = budgetStore.updateItem(itemId, { act: target.value });
+    const normalized = parseAmountInput(target.value, { allowNull: true });
+    target.value = normalized === null ? '' : String(normalized);
+
+    const updatedItem = patchBudgetStateItem(itemId, { act: normalized });
+
+    if (updatedItem) {
+      const usageCell = row.querySelector('.budget-usage');
+
+      if (usageCell) {
+        const usageValue = effectiveAmount(updatedItem);
+        usageCell.textContent = usageValue === null ? '—' : formatMoney(usageValue);
+        applyBudgetUsageStyles(usageCell, updatedItem);
+      }
+
+      renderBudgetSummary();
+    }
+
+    const update = budgetStore.updateItem(itemId, { act: normalized });
 
     if (update && typeof update.catch === 'function') {
       update.catch((error) => {
@@ -6294,6 +6386,12 @@ const handleBudgetTableChange = (event) => {
   }
 
   if (target.matches('.budget-row__paid')) {
+    const updatedItem = patchBudgetStateItem(itemId, { paid: target.checked });
+
+    if (updatedItem) {
+      renderBudgetSummary();
+    }
+
     const update = budgetStore.updateItem(itemId, { paid: target.checked });
 
     if (update && typeof update.catch === 'function') {
