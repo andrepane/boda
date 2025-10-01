@@ -2213,7 +2213,7 @@ body.idea-image-viewer-open {
   display: grid;
   gap: 0.35rem;
   background: rgba(253, 250, 246, 0.85);
-  padding: 1rem;
+  padding: 0.35rem;
   border-radius: 16px;
   border: 1px solid rgba(111, 91, 139, 0.12);
 }
