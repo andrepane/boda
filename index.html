@@ -256,49 +256,15 @@
                 </p>
               </header>
 
-              <form id="idea-form" class="form-grid" autocomplete="off">
+              <form id="idea-form" class="form-grid ideas-form" autocomplete="off">
                 <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-title">Título</label>
+                  <label class="form-label" for="idea-title">Título o descripción</label>
                   <input
                     id="idea-title"
                     class="form-control"
                     type="text"
                     placeholder="Centro de mesa, invitaciones…"
                     required
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="idea-category">Categoría</label>
-                  <input
-                    id="idea-category"
-                    class="form-control"
-                    type="text"
-                    placeholder="Decoración, música, viaje…"
-                    required
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="idea-order">Orden manual</label>
-                  <input
-                    id="idea-order"
-                    class="form-control"
-                    type="number"
-                    min="0"
-                    step="1"
-                    inputmode="numeric"
-                    placeholder="1, 2, 3…"
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="idea-url">URL principal</label>
-                  <input
-                    id="idea-url"
-                    class="form-control"
-                    type="url"
-                    placeholder="https://"
                   />
                 </div>
 
@@ -311,56 +277,26 @@
                     accept="image/*"
                     multiple
                   />
-                  <p class="form-hint">Selecciona varias imágenes para crear un mosaico.</p>
-                </div>
-
-                <div class="form-field form-field--full form-field--palette">
-                  <span class="form-label">Paleta de color</span>
-                  <div class="palette-inputs">
-                    <label class="palette-inputs__item" for="idea-color-primary">
-                      <span>Primario</span>
-                      <input id="idea-color-primary" class="palette-inputs__control" type="color" value="#6256ff" />
-                    </label>
-                    <label class="palette-inputs__item" for="idea-color-secondary">
-                      <span>Secundario</span>
-                      <input id="idea-color-secondary" class="palette-inputs__control" type="color" value="#f8dada" />
-                    </label>
-                    <label class="palette-inputs__item" for="idea-color-accent">
-                      <span>Acento</span>
-                      <input id="idea-color-accent" class="palette-inputs__control" type="color" value="#ffeab5" />
-                    </label>
-                  </div>
+                  <p class="form-hint">Sube imágenes desde tu dispositivo para crear tu tablero visual.</p>
                 </div>
 
                 <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-checklist-links">Checklist relacionada</label>
-                  <textarea
-                    id="idea-checklist-links"
-                    class="form-control form-control--textarea"
-                    rows="2"
-                    placeholder="Título de la tarea | https://enlace"
-                  ></textarea>
-                  <p class="form-hint">Escribe un vínculo por línea. Usa “Título | URL” para enlazar directamente.</p>
+                  <label class="form-label" for="idea-url">Enlace (opcional)</label>
+                  <input
+                    id="idea-url"
+                    class="form-control"
+                    type="url"
+                    placeholder="https://"
+                  />
                 </div>
 
                 <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-vendor-links">Proveedores relacionados</label>
-                  <textarea
-                    id="idea-vendor-links"
-                    class="form-control form-control--textarea"
-                    rows="2"
-                    placeholder="Nombre del proveedor | https://sitio"
-                  ></textarea>
-                  <p class="form-hint">Añade accesos rápidos a fichas de proveedores o presupuestos.</p>
-                </div>
-
-                <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-note">Nota</label>
+                  <label class="form-label" for="idea-note">Nota personal</label>
                   <textarea
                     id="idea-note"
                     class="form-control form-control--textarea"
                     rows="2"
-                    placeholder="Detalles para recordar"
+                    placeholder="Detalles para recordar, materiales, combinaciones…"
                   ></textarea>
                 </div>
 
@@ -374,15 +310,8 @@
                     id="idea-search"
                     class="form-control"
                     type="search"
-                    placeholder="Buscar por título"
+                    placeholder="Buscar por título o nota"
                   />
-                </div>
-
-                <div class="ideas-filter">
-                  <label class="form-label" for="idea-category-filter">Categoría</label>
-                  <select id="idea-category-filter" class="form-control">
-                    <option value="">Todas</option>
-                  </select>
                 </div>
               </div>
 

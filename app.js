@@ -1734,96 +1734,6 @@ const sanitizeIdeaOrder = (value) => {
   return null;
 };
 
-const sanitizeIdeaPalette = (value) => {
-  const source = value && typeof value === 'object' ? value : {};
-  const fromArray = Array.isArray(value)
-    ? { primary: value[0], secondary: value[1], accent: value[2] }
-    : {};
-
-  const primary = sanitizeHexColor(
-    source.primary ?? source.main ?? source.principal ?? fromArray.primary ?? '',
-  );
-  const secondary = sanitizeHexColor(
-    source.secondary ?? source.secundario ?? fromArray.secondary ?? '',
-  );
-  const accent = sanitizeHexColor(
-    source.accent ?? source.tertiary ?? source.acento ?? fromArray.accent ?? '',
-  );
-
-  return {
-    primary,
-    secondary,
-    accent,
-  };
-};
-
-const sanitizeIdeaRelationEntry = (entry) => {
-  if (!entry) {
-    return null;
-  }
-
-  if (typeof entry === 'string') {
-    const label = sanitizeEntityText(entry);
-    return label ? { label, url: '' } : null;
-  }
-
-  if (typeof entry !== 'object') {
-    return null;
-  }
-
-  const label = sanitizeEntityText(
-    entry.label ?? entry.title ?? entry.name ?? entry.text ?? entry.descripcion ?? '',
-  );
-  const url = sanitizeIdeaLinkUrl(entry.url ?? entry.href ?? entry.link ?? '');
-
-  if (!label && !url) {
-    return null;
-  }
-
-  const finalLabel = label || (url ? url.replace(/^https?:\/\//, '').replace(/\/?$/, '') : '');
-
-  return {
-    label: finalLabel,
-    url,
-  };
-};
-
-const sanitizeIdeaRelations = (value) => {
-  const result = {
-    checklist: [],
-    vendors: [],
-  };
-
-  if (!value || typeof value !== 'object') {
-    return result;
-  }
-
-  const toArray = (input) => {
-    if (Array.isArray(input)) {
-      return input;
-    }
-
-    if (typeof input === 'string') {
-      return input
-        .split(/\r?\n|,/)
-        .map((item) => item.trim())
-        .filter((item) => Boolean(item))
-        .map((item) => ({ label: item }));
-    }
-
-    return [];
-  };
-
-  result.checklist = toArray(value.checklist ?? value.tasks ?? value.tareas)
-    .map(sanitizeIdeaRelationEntry)
-    .filter((entry) => entry !== null);
-  result.vendors = toArray(value.vendors ?? value.providers ?? value.proveedores)
-    .map(sanitizeIdeaRelationEntry)
-    .filter((entry) => entry !== null);
-
-  return result;
-};
-
 // Invitados
 const RSVP_LABELS = {
   yes: 'Confirmado',
@@ -2830,16 +2740,8 @@ const ideaImageViewer = createIdeaImageViewer();
 const ideaTitleInput = document.getElementById('idea-title');
 const ideaUrlInput = document.getElementById('idea-url');
 const ideaImagesInput = document.getElementById('idea-images');
-const ideaCategoryInput = document.getElementById('idea-category');
-const ideaOrderInput = document.getElementById('idea-order');
-const ideaColorPrimaryInput = document.getElementById('idea-color-primary');
-const ideaColorSecondaryInput = document.getElementById('idea-color-secondary');
-const ideaColorAccentInput = document.getElementById('idea-color-accent');
-const ideaChecklistLinksInput = document.getElementById('idea-checklist-links');
-const ideaVendorLinksInput = document.getElementById('idea-vendor-links');
 const ideaNoteInput = document.getElementById('idea-note');
 const ideaSearchInput = document.getElementById('idea-search');
-const ideaCategoryFilter = document.getElementById('idea-category-filter');
 const ideasGrid = document.getElementById('ideas-grid');
 
 const normalizeIdeaRecord = (id, record) => {
@@ -2859,8 +2761,6 @@ const normalizeIdeaRecord = (id, record) => {
   const images = sanitizeIdeaImages(
     Array.isArray(record.images) && record.images.length ? record.images : record.image,
   );
-  const palette = sanitizeIdeaPalette(record.palette);
-  const relations = sanitizeIdeaRelations(record.relations);
   const order = sanitizeIdeaOrder(record.order);
 
   const image = images.length ? images[0] : '';
@@ -2869,12 +2769,9 @@ const normalizeIdeaRecord = (id, record) => {
     id,
     title,
     url: sanitizeEntityText(record.url),
-    category: sanitizeEntityText(record.category) || 'Sin categoría',
     note: sanitizeEntityText(record.note),
     images,
     image,
-    palette,
-    relations,
     order,
     likes,
     createdAt: toTimestamp(record.createdAt),
@@ -3032,21 +2929,20 @@ const ideasStore = createIdeasStore();
 let ideasData = [];
 const ideaFilters = {
   search: '',
-  category: '',
 };
 let currentIdeaUserId = null;
 
 const applyIdeaFilters = (ideas) => {
   const search = ideaFilters.search;
-  const category = ideaFilters.category;
 
   return ideas.filter((idea) => {
-    if (search && !idea.title.toLowerCase().includes(search)) {
-      return false;
-    }
+    if (search) {
+      const title = idea.title ? idea.title.toLowerCase() : '';
+      const note = idea.note ? idea.note.toLowerCase() : '';
 
-    if (category && idea.category !== category) {
-      return false;
+      if (!title.includes(search) && !note.includes(search)) {
+        return false;
+      }
     }
 
     return true;
@@ -3058,49 +2954,15 @@ const createIdeaCard = (idea, uid) => {
   card.className = 'idea-card';
   card.dataset.id = idea.id;
 
-  const header = document.createElement('header');
-  header.className = 'idea-card__header';
-
-  const headerMain = document.createElement('div');
-  headerMain.className = 'idea-card__header-main';
-
-  const titleElement = idea.url ? document.createElement('a') : document.createElement('h3');
-  titleElement.className = 'idea-card__title';
-  titleElement.textContent = idea.title;
-
-  if (idea.url) {
-    titleElement.href = idea.url;
-    titleElement.target = '_blank';
-    titleElement.rel = 'noopener noreferrer';
-  }
-
-  headerMain.append(titleElement);
-
-  const category = document.createElement('span');
-  category.className = 'idea-card__category';
-  category.textContent = idea.category;
-  headerMain.append(category);
-
-  header.append(headerMain);
-
-  if (typeof idea.order === 'number' && Number.isFinite(idea.order)) {
-    const order = document.createElement('span');
-    order.className = 'idea-card__order';
-    const formattedOrder = Number.isInteger(idea.order)
-      ? idea.order.toString()
-      : idea.order.toFixed(1);
-    order.textContent = `#${formattedOrder}`;
-    order.title = 'Orden manual';
-    header.append(order);
-  }
-
-  card.append(header);
-
   const images = Array.isArray(idea.images) && idea.images.length ? idea.images : idea.image ? [idea.image] : [];
 
   if (images.length) {
-    const gallery = document.createElement('div');
-    gallery.className = 'idea-card__gallery';
+    const media = document.createElement('div');
+    media.className = 'idea-card__media';
+
+    if (images.length > 1) {
+      media.classList.add('idea-card__media--multi');
+    }
 
     images.forEach((source, index) => {
       if (!source) {
@@ -3110,15 +2972,7 @@ const createIdeaCard = (idea, uid) => {
       const thumb = document.createElement('button');
       thumb.type = 'button';
       thumb.className = 'idea-card__thumb';
-
-      if (index === 0) {
-        thumb.classList.add('idea-card__thumb--main');
-      } else if ((index + 1) % 3 === 0) {
-        thumb.classList.add('idea-card__thumb--tall');
-      } else {
-        thumb.classList.add('idea-card__thumb--wide');
-      }
-
+      thumb.classList.add(index === 0 ? 'idea-card__thumb--primary' : 'idea-card__thumb--secondary');
       thumb.dataset.image = source;
 
       if (idea.title) {
@@ -3139,115 +2993,39 @@ const createIdeaCard = (idea, uid) => {
       image.decoding = 'async';
 
       thumb.append(image);
-      gallery.append(thumb);
+
+      media.append(thumb);
     });
 
-    card.append(gallery);
+    card.append(media);
   }
 
-  const paletteEntries = [
-    { key: 'primary', label: 'Primario', value: idea.palette ? idea.palette.primary : '' },
-    { key: 'secondary', label: 'Secundario', value: idea.palette ? idea.palette.secondary : '' },
-    { key: 'accent', label: 'Acento', value: idea.palette ? idea.palette.accent : '' },
-  ].filter((entry) => Boolean(entry.value));
+  const body = document.createElement('div');
+  body.className = 'idea-card__body';
 
-  if (paletteEntries.length) {
-    const palette = document.createElement('div');
-    palette.className = 'idea-card__palette';
+  const titleElement = document.createElement('h3');
+  titleElement.className = 'idea-card__title';
+  titleElement.textContent = idea.title;
+  body.append(titleElement);
 
-    const paletteTitle = document.createElement('span');
-    paletteTitle.className = 'idea-card__palette-title';
-    paletteTitle.textContent = 'Paleta';
-    palette.append(paletteTitle);
-
-    const paletteList = document.createElement('div');
-    paletteList.className = 'idea-card__palette-swatches';
-
-    paletteEntries.forEach((entry) => {
-      const swatch = document.createElement('span');
-      swatch.className = `idea-card__swatch idea-card__swatch--${entry.key}`;
-      swatch.style.setProperty('--swatch-color', entry.value);
-      swatch.title = `${entry.label}: ${entry.value.toUpperCase()}`;
-      swatch.textContent = entry.value.toUpperCase();
-      paletteList.append(swatch);
-    });
-
-    palette.append(paletteList);
-    card.append(palette);
+  if (idea.url) {
+    const link = document.createElement('a');
+    link.className = 'idea-card__link';
+    link.href = idea.url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'Ver enlace de referencia';
+    body.append(link);
   }
 
   if (idea.note) {
     const note = document.createElement('p');
     note.className = 'idea-card__note';
     note.textContent = idea.note;
-    card.append(note);
+    body.append(note);
   }
 
-  const relations = idea.relations || {};
-  const relationGroups = [
-    {
-      key: 'checklist',
-      label: 'Checklist',
-      items: Array.isArray(relations.checklist) ? relations.checklist : [],
-    },
-    {
-      key: 'vendors',
-      label: 'Proveedores',
-      items: Array.isArray(relations.vendors) ? relations.vendors : [],
-    },
-  ].filter((group) => group.items.length);
-
-  if (relationGroups.length) {
-    const relationsContainer = document.createElement('div');
-    relationsContainer.className = 'idea-card__relations';
-
-    relationGroups.forEach((group) => {
-      const groupElement = document.createElement('div');
-      groupElement.className = `idea-card__relation-group idea-card__relation-group--${group.key}`;
-
-      const groupTitle = document.createElement('span');
-      groupTitle.className = 'idea-card__relation-title';
-      groupTitle.textContent = group.label;
-      groupElement.append(groupTitle);
-
-      const groupList = document.createElement('div');
-      groupList.className = 'idea-card__relation-list';
-
-      group.items.forEach((item) => {
-        if (!item || typeof item !== 'object') {
-          return;
-        }
-
-        const label = sanitizeEntityText(item.label);
-        const url = sanitizeIdeaLinkUrl(item.url);
-
-        if (!label && !url) {
-          return;
-        }
-
-        const chip = document.createElement(url ? 'a' : 'span');
-        chip.className = 'idea-card__relation-chip';
-        chip.textContent = label || (url ? url.replace(/^https?:\/\//, '').replace(/\/?$/, '') : '');
-
-        if (url) {
-          chip.href = url;
-          chip.target = '_blank';
-          chip.rel = 'noopener noreferrer';
-        }
-
-        groupList.append(chip);
-      });
-
-      if (groupList.childElementCount > 0) {
-        groupElement.append(groupList);
-        relationsContainer.append(groupElement);
-      }
-    });
-
-    if (relationsContainer.childElementCount > 0) {
-      card.append(relationsContainer);
-    }
-  }
+  card.append(body);
 
   const footer = document.createElement('footer');
   footer.className = 'idea-card__footer';
@@ -3354,85 +3132,6 @@ const readIdeaImageFiles = (input) => {
   );
 };
 
-const parseIdeaQuickLinksInput = (value) => {
-  if (typeof value !== 'string') {
-    return [];
-  }
-
-  const seen = new Set();
-
-  return value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => Boolean(line))
-    .map((line) => {
-      const [firstPart, secondPart] = line.split('|').map((part) => part.trim());
-
-      let label = '';
-      let url = '';
-
-      if (secondPart) {
-        label = sanitizeEntityText(firstPart);
-        url = sanitizeIdeaLinkUrl(secondPart);
-      } else if (firstPart.startsWith('http://') || firstPart.startsWith('https://')) {
-        url = sanitizeIdeaLinkUrl(firstPart);
-      } else {
-        label = sanitizeEntityText(firstPart);
-      }
-
-      if (!label && url) {
-        label = url.replace(/^https?:\/\//, '').replace(/\/?$/, '');
-      }
-
-      if (!label && !url) {
-        return null;
-      }
-
-      return { label, url };
-    })
-    .filter((entry) => entry !== null)
-    .filter((entry) => {
-      const key = `${entry.label}|${entry.url}`;
-
-      if (seen.has(key)) {
-        return false;
-      }
-
-      seen.add(key);
-      return true;
-    });
-};
-
-const updateIdeasCategoryFilter = () => {
-  if (!ideaCategoryFilter) {
-    return;
-  }
-
-  const currentValue = ideaCategoryFilter.value;
-
-  Array.from(ideaCategoryFilter.options)
-    .slice(1)
-    .forEach((option) => option.remove());
-
-  const categories = Array.from(
-    new Set(ideasData.map((idea) => idea.category).filter((category) => Boolean(category))),
-  ).sort((first, second) => first.localeCompare(second, 'es', { sensitivity: 'base' }));
-
-  categories.forEach((category) => {
-    const option = document.createElement('option');
-    option.value = category;
-    option.textContent = category;
-    ideaCategoryFilter.append(option);
-  });
-
-  if (currentValue && !categories.includes(currentValue)) {
-    ideaCategoryFilter.value = '';
-    ideaFilters.category = '';
-  } else if (currentValue) {
-    ideaCategoryFilter.value = currentValue;
-  }
-};
-
 const renderIdeas = () => {
   if (!ideasGrid) {
     return;
@@ -3446,7 +3145,7 @@ const renderIdeas = () => {
     const empty = document.createElement('p');
     empty.className = 'idea-card__empty';
     empty.textContent = ideasData.length
-      ? 'No hay ideas que coincidan con los filtros.'
+      ? 'No hay ideas que coincidan con la búsqueda.'
       : 'Guarda tus primeras ideas para inspirarte.';
     ideasGrid.append(empty);
     return;
@@ -3486,43 +3185,15 @@ const handleIdeaFormSubmit = async (event) => {
     return;
   }
 
-  const paletteInput = sanitizeIdeaPalette({
-    primary: ideaColorPrimaryInput ? ideaColorPrimaryInput.value : '',
-    secondary: ideaColorSecondaryInput ? ideaColorSecondaryInput.value : '',
-    accent: ideaColorAccentInput ? ideaColorAccentInput.value : '',
-  });
-
-  const checklistLinks = parseIdeaQuickLinksInput(
-    ideaChecklistLinksInput ? ideaChecklistLinksInput.value : '',
-  );
-  const vendorLinks = parseIdeaQuickLinksInput(ideaVendorLinksInput ? ideaVendorLinksInput.value : '');
-  const manualOrder = ideaOrderInput ? sanitizeIdeaOrder(ideaOrderInput.value) : null;
-
   const payload = {
     title: ideaTitleInput ? ideaTitleInput.value : '',
     url: ideaUrlInput ? ideaUrlInput.value : '',
-    category: ideaCategoryInput ? ideaCategoryInput.value : '',
     note: ideaNoteInput ? ideaNoteInput.value : '',
   };
 
   if (imagesData.length) {
     payload.images = imagesData;
     payload.image = imagesData[0];
-  }
-
-  if (Object.values(paletteInput).some((color) => Boolean(color))) {
-    payload.palette = paletteInput;
-  }
-
-  if (checklistLinks.length || vendorLinks.length) {
-    payload.relations = {
-      checklist: checklistLinks,
-      vendors: vendorLinks,
-    };
-  }
-
-  if (manualOrder !== null) {
-    payload.order = manualOrder;
   }
 
   const user = getCurrentUser();
@@ -3628,7 +3299,6 @@ const initializeIdeasSection = () => {
 
   ideasStore.subscribe(({ ideas }) => {
     ideasData = ideas;
-    updateIdeasCategoryFilter();
     renderIdeas();
   });
 
@@ -3640,13 +3310,6 @@ const initializeIdeasSection = () => {
     ideaSearchInput.addEventListener('input', (event) => {
       const value = typeof event.target.value === 'string' ? event.target.value : '';
       ideaFilters.search = value.trim().toLowerCase();
-      renderIdeas();
-    });
-  }
-
-  if (ideaCategoryFilter) {
-    ideaCategoryFilter.addEventListener('change', (event) => {
-      ideaFilters.category = event.target.value;
       renderIdeas();
     });
   }
