@@ -2228,6 +2228,18 @@ body.idea-image-viewer-open {
   flex: 1 1 160px;
 }
 
+.budget-target__controls .form-control,
+.budget-target__controls .button {
+  min-height: 46px;
+}
+
+.budget-target__controls .button {
+  padding: 0.65rem 1.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .table-wrapper {
   overflow-x: auto;
   border-radius: 18px;
@@ -2290,6 +2302,16 @@ body.idea-image-viewer-open {
 }
 
 @media (max-width: 768px) {
+  .budget-target__controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .budget-target__controls .form-control,
+  .budget-target__controls .button {
+    width: 100%;
+  }
+
   .budget-row__actual {
     width: 100%;
     min-width: 140px;
