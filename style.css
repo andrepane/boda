@@ -2408,3 +2408,11 @@ body.idea-image-viewer-open {
   gap: 0.35rem;
   text-align: center;
 }
+
+/* Fix: input "Objetivo general" gigante en móvil */
+@media (max-width: 768px) {
+  #budget-target {
+    flex: 0 0 auto;  /* anula el 1 1 160px que le da altura en columna */
+    height: auto;    /* por si algún navegador conserva altura previa */
+  }
+}
