@@ -743,6 +743,15 @@ h6,
     align-items: stretch;
   }
 
+  .budget-target {
+    padding: 0.85rem;
+  }
+
+  .budget-target__controls input {
+    padding: 0.55rem 0.85rem;
+    border-radius: 12px;
+  }
+
   .venues-grid,
   .budget-grid {
     grid-template-columns: 1fr;
