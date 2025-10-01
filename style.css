@@ -2424,9 +2424,11 @@ body.idea-image-viewer-open {
   min-width: 120px;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 768px) {
   .budget-row__actual {
-    min-width: 100%;
+    width: 100%;
+    min-width: 140px;
+    padding: 0.75rem 1rem;
   }
 }
 
