@@ -6033,10 +6033,13 @@ const computeTotals = (items) => {
   let estimatedWithoutActual = 0;
   let actual = 0;
   let paidCount = 0;
+  let totalOfficial = 0;
+  let paidAmount = 0;
 
   items.forEach((item) => {
     const hasActual = Number.isFinite(item.act);
     const hasEstimate = Number.isFinite(item.est);
+    const officialAmount = effectiveAmount(item);
 
     if (hasActual) {
       actual += item.act;
@@ -6044,8 +6047,16 @@ const computeTotals = (items) => {
       estimatedWithoutActual += item.est;
     }
 
+    if (Number.isFinite(officialAmount)) {
+      totalOfficial += officialAmount;
+    }
+
     if (item.paid) {
       paidCount += 1;
+
+      if (Number.isFinite(officialAmount)) {
+        paidAmount += officialAmount;
+      }
     }
   });
 
@@ -6057,6 +6068,8 @@ const computeTotals = (items) => {
     total,
     paidCount,
     totalCount: items.length,
+    totalOfficial,
+    paidAmount,
   };
 };
 
@@ -6074,7 +6087,12 @@ const formatBudgetDate = (value) => {
 
 const renderBudgetSummary = () => {
   const totals = computeTotals(budgetState.items);
-  const paidPercent = totals.totalCount > 0 ? Math.round((totals.paidCount / totals.totalCount) * 100) : 0;
+  const paidPercentRaw =
+    totals.totalOfficial > 0 ? (totals.paidAmount / totals.totalOfficial) * 100 : 0;
+  const paidPercent = Math.max(0, Math.min(100, paidPercentRaw));
+  const formattedPaidPercent = Number.isFinite(paidPercent)
+    ? paidPercent.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '0,00';
 
   if (budgetTargetValue) {
     budgetTargetValue.textContent = formatMoney(budgetState.target);
@@ -6093,7 +6111,7 @@ const renderBudgetSummary = () => {
   }
 
   if (budgetPaidPercentValue) {
-    budgetPaidPercentValue.textContent = `${Math.max(0, Math.min(100, paidPercent))}%`;
+    budgetPaidPercentValue.textContent = `${formattedPaidPercent}%`;
   }
 };
 
