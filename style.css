@@ -2228,17 +2228,6 @@ body.idea-image-viewer-open {
   flex: 1 1 160px;
 }
 
-@media (max-width: 768px) {
-  .budget-target__controls {
-    align-items: center;
-  }
-
-  .budget-target__controls #budget-target {
-    flex: 0 1 60%;
-    max-width: 60%;
-    min-width: 0;
-  }
-
 .budget-target__controls .form-control,
 .budget-target__controls .button {
   min-height: 46px;
