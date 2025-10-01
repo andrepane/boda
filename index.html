@@ -21,7 +21,8 @@
             </div>
           </div>
 
-          <nav class="tabs" aria-label="Secciones de la aplicacion">
+          <div class="tabs-container">
+            <nav class="tabs" aria-label="Secciones de la aplicacion">
             <button
               id="checklist-tab"
               class="tabs__tab is-active"
@@ -82,7 +83,8 @@
             >
               Presupuesto
             </button>
-          </nav>
+            </nav>
+          </div>
         </header>
 
         <main class="app__content">
@@ -103,6 +105,7 @@
                     class="checklist__control"
                     type="text"
                     placeholder="Describe la tarea"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -132,7 +135,7 @@
 
                 <div class="checklist__field">
                   <label class="checklist__label" for="task-deadline">Fecha límite</label>
-                  <input id="task-deadline" class="checklist__control" type="date" required />
+                  <input id="task-deadline" class="checklist__control" type="date" inputmode="numeric" required />
                 </div>
 
                 <button class="button checklist__submit" type="submit">Agregar</button>
@@ -187,13 +190,14 @@
                     class="form-control"
                     type="text"
                     placeholder="Reunión con el catering, prueba de vestido…"
+                    inputmode="text"
                     required
                   />
                 </div>
 
                 <div class="form-field">
                   <label class="form-label" for="milestone-date">Fecha</label>
-                  <input id="milestone-date" class="form-control" type="date" required />
+                  <input id="milestone-date" class="form-control" type="date" inputmode="numeric" required />
                 </div>
 
                 <div class="form-field">
@@ -212,6 +216,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Nombres separados por coma"
+                    inputmode="text"
                   />
                 </div>
 
@@ -264,6 +269,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Centro de mesa, invitaciones…"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -286,6 +292,7 @@
                     id="idea-url"
                     class="form-control"
                     type="url"
+                    inputmode="url"
                     placeholder="https://"
                   />
                 </div>
@@ -297,6 +304,7 @@
                     class="form-control form-control--textarea"
                     rows="2"
                     placeholder="Detalles para recordar, materiales, combinaciones…"
+                    inputmode="text"
                   ></textarea>
                 </div>
 
@@ -336,6 +344,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Nombre del lugar"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -347,6 +356,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Calle, ciudad"
+                    inputmode="text"
                   />
                 </div>
 
@@ -356,6 +366,7 @@
                     id="venue-maps"
                     class="form-control"
                     type="url"
+                    inputmode="url"
                     placeholder="https://google.com/..."
                   />
                 </div>
@@ -381,14 +392,14 @@
                     type="number"
                     min="0"
                     step="1"
-                    inputmode="numeric"
+                    inputmode="decimal"
                     placeholder="€"
                   />
                 </div>
 
                 <div class="form-field">
                   <label class="form-label" for="venue-date">Fecha disponible</label>
-                  <input id="venue-date" class="form-control" type="date" />
+                  <input id="venue-date" class="form-control" type="date" inputmode="numeric" />
                 </div>
 
                 <div class="form-field">
@@ -398,6 +409,8 @@
                     class="form-control"
                     type="text"
                     placeholder="Persona, teléfono o email"
+                    inputmode="email"
+                    autocomplete="email"
                   />
                 </div>
 
@@ -409,6 +422,7 @@
                       class="form-control form-control--textarea"
                       rows="2"
                       placeholder="Puntos fuertes del lugar"
+                      inputmode="text"
                     ></textarea>
                   </div>
 
@@ -419,6 +433,7 @@
                       class="form-control form-control--textarea"
                       rows="2"
                       placeholder="Aspectos a mejorar o dudas"
+                      inputmode="text"
                     ></textarea>
                   </div>
                 </div>
@@ -582,6 +597,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Nombre completo"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -602,6 +618,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Familia, amigos…"
+                    inputmode="text"
                   />
                 </div>
 
@@ -613,6 +630,7 @@
                     type="text"
                     placeholder="Ej. Suite 1, Habitación 202"
                     list="guest-room-options"
+                    inputmode="text"
                   />
                 </div>
 
@@ -634,6 +652,7 @@
                     min="0"
                     step="1"
                     value="0"
+                    inputmode="numeric"
                   />
                 </div>
 
@@ -644,6 +663,8 @@
                     class="form-control"
                     type="text"
                     placeholder="Correo o teléfono"
+                    inputmode="email"
+                    autocomplete="email"
                   />
                 </div>
 
@@ -654,6 +675,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Sin gluten, vegetariano…"
+                    inputmode="text"
                   />
                 </div>
 
@@ -664,6 +686,7 @@
                     class="form-control form-control--textarea"
                     rows="2"
                     placeholder="Comentarios extra"
+                    inputmode="text"
                   ></textarea>
                 </div>
 
@@ -760,6 +783,7 @@
                     type="number"
                     min="0"
                     step="0.01"
+                    inputmode="decimal"
                     placeholder="0"
                   />
                   <button class="button button--compact" type="submit">Guardar objetivo</button>
@@ -797,6 +821,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Catering, música, flores…"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -808,6 +833,7 @@
                     class="form-control"
                     type="text"
                     placeholder="Catering, foto…"
+                    inputmode="text"
                     required
                   />
                 </div>
@@ -820,6 +846,7 @@
                     type="number"
                     min="0"
                     step="0.01"
+                    inputmode="decimal"
                     required
                   />
                 </div>
@@ -832,6 +859,7 @@
                     type="number"
                     min="0"
                     step="0.01"
+                    inputmode="decimal"
                   />
                 </div>
 
@@ -842,12 +870,13 @@
                     class="form-control"
                     type="text"
                     placeholder="Nombre o contacto"
+                    inputmode="text"
                   />
                 </div>
 
                 <div class="form-field">
                   <label class="form-label" for="budget-date">Fecha</label>
-                  <input id="budget-date" class="form-control" type="date" />
+                  <input id="budget-date" class="form-control" type="date" inputmode="numeric" />
                 </div>
 
                 <button class="button form-submit" type="submit">Agregar gasto</button>
