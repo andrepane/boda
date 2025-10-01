@@ -4866,7 +4866,7 @@ const createVenueCard = (venue) => {
     mapsButton.className = 'venue-card__button';
     mapsButton.dataset.action = 'open-maps';
     mapsButton.dataset.url = venue.mapsUrl;
-    mapsButton.textContent = 'Abrir en Maps';
+    mapsButton.textContent = 'Página Web';
     meta.append(mapsButton);
   }
 
