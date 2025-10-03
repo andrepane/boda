@@ -955,6 +955,11 @@ h6,
   min-height: 52px;
 }
 
+.budget-form__cancel {
+  align-self: end;
+  min-height: 52px;
+}
+
 .timeline-form {
   margin-top: 1.4rem;
 }
@@ -1351,6 +1356,7 @@ h6,
 .idea-card__like,
 .idea-card__delete,
 .guest-card__delete,
+.budget-row__edit,
 .budget-row__delete {
   border: none;
   font: inherit;
@@ -1374,6 +1380,12 @@ h6,
   background: rgba(111, 91, 139, 0.26);
 }
 
+.budget-row__edit {
+  background: rgba(111, 91, 139, 0.16);
+  color: var(--brand-dark);
+  box-shadow: 0 4px 10px rgba(111, 91, 139, 0.18);
+}
+
 .idea-card__delete,
 .guest-card__delete,
 .budget-row__delete {
@@ -1385,9 +1397,14 @@ h6,
 .idea-card__like:hover,
 .idea-card__delete:hover,
 .guest-card__delete:hover,
+.budget-row__edit:hover,
 .budget-row__delete:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(45, 35, 56, 0.18);
+}
+
+.budget-row__edit:hover {
+  background: rgba(111, 91, 139, 0.24);
 }
 
 .idea-card__like:disabled {
@@ -2460,6 +2477,10 @@ body.idea-image-viewer-open {
 
 .budget-table__cell--actions {
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .budget-table__cell--paid {
