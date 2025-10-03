@@ -47,6 +47,21 @@ const PRIORITY_LABELS = PRIORITY_OPTIONS.reduce((labels, option) => {
   return labels;
 }, {});
 
+const getNextPriorityValue = (current) => {
+  if (!isValidPriority(current)) {
+    return PRIORITY_OPTIONS[0].value;
+  }
+
+  const index = PRIORITY_OPTIONS.findIndex((option) => option.value === current);
+
+  if (index === -1) {
+    return PRIORITY_OPTIONS[0].value;
+  }
+
+  const nextIndex = (index + 1) % PRIORITY_OPTIONS.length;
+  return PRIORITY_OPTIONS[nextIndex].value;
+};
+
 const createId = () =>
   typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -181,10 +196,16 @@ const createTaskItem = (task) => {
   const meta = document.createElement('div');
   meta.className = 'task__meta';
 
-  const priorityTag = document.createElement('span');
-  priorityTag.className = `task__priority priority--${task.priority}`;
-  priorityTag.textContent = PRIORITY_LABELS[task.priority] || task.priority;
-  meta.appendChild(priorityTag);
+  const priorityButton = document.createElement('button');
+  priorityButton.type = 'button';
+  priorityButton.className = `task__priority priority--${task.priority} task__priority-button`;
+  priorityButton.dataset.priority = task.priority;
+  priorityButton.dataset.action = 'cycle-priority';
+  const initialPriorityLabel = PRIORITY_LABELS[task.priority] || task.priority;
+  priorityButton.setAttribute('aria-label', `Cambiar prioridad (actual: ${initialPriorityLabel})`);
+  priorityButton.title = `Cambiar prioridad (actual: ${initialPriorityLabel})`;
+  priorityButton.textContent = initialPriorityLabel;
+  meta.appendChild(priorityButton);
 
   const formattedDueDate = formatDueDate(task.dueDate);
 
@@ -1136,29 +1157,74 @@ list.addEventListener('change', (event) => {
 list.addEventListener('click', (event) => {
   const target = event.target;
 
-  if (!(target instanceof HTMLButtonElement) || !target.matches('.task__delete')) {
+  if (!(target instanceof HTMLButtonElement)) {
     return;
   }
 
-  const item = target.closest('.task');
+  if (target.matches('.task__delete')) {
+    const item = target.closest('.task');
 
-  if (!item) {
+    if (!item) {
+      return;
+    }
+
+    const taskId = item.dataset.id;
+
+    if (!taskId) {
+      return;
+    }
+
+    const removal = deleteTask(taskId);
+
+    if (removal && typeof removal.catch === 'function') {
+      removal.catch((error) => {
+        console.error('No se pudo eliminar la tarea.', error);
+        alert('No se pudo eliminar la tarea. Revisa tu conexión e inténtalo nuevamente.');
+      });
+    }
+
     return;
   }
 
-  const taskId = item.dataset.id;
+  if (target.matches('.task__priority-button')) {
+    const item = target.closest('.task');
 
-  if (!taskId) {
-    return;
-  }
+    if (!item) {
+      return;
+    }
 
-  const removal = deleteTask(taskId);
+    const taskId = item.dataset.id;
 
-  if (removal && typeof removal.catch === 'function') {
-    removal.catch((error) => {
-      console.error('No se pudo eliminar la tarea.', error);
-      alert('No se pudo eliminar la tarea. Revisa tu conexión e inténtalo nuevamente.');
-    });
+    if (!taskId) {
+      return;
+    }
+
+    const currentPriority = target.dataset.priority || '';
+    const nextPriority = getNextPriorityValue(currentPriority);
+
+    target.dataset.priority = nextPriority;
+    target.classList.remove(`priority--${currentPriority}`);
+    target.classList.add(`priority--${nextPriority}`);
+    const nextPriorityLabel = PRIORITY_LABELS[nextPriority] || nextPriority;
+    target.textContent = nextPriorityLabel;
+    target.setAttribute('aria-label', `Cambiar prioridad (actual: ${nextPriorityLabel})`);
+    target.title = `Cambiar prioridad (actual: ${nextPriorityLabel})`;
+
+    const update = updateTask(taskId, { priority: nextPriority });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar la prioridad.', error);
+        alert('No se pudo actualizar la prioridad. Revisa tu conexión e inténtalo nuevamente.');
+        target.dataset.priority = currentPriority;
+        target.classList.remove(`priority--${nextPriority}`);
+        target.classList.add(`priority--${currentPriority}`);
+        const currentLabel = PRIORITY_LABELS[currentPriority] || currentPriority;
+        target.textContent = currentLabel;
+        target.setAttribute('aria-label', `Cambiar prioridad (actual: ${currentLabel})`);
+        target.title = `Cambiar prioridad (actual: ${currentLabel})`;
+      });
+    }
   }
 });
 
