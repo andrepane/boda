@@ -6201,6 +6201,119 @@ const budgetActualInput = document.getElementById('budget-actual-input');
 const budgetProviderInput = document.getElementById('budget-provider');
 const budgetDateInput = document.getElementById('budget-date');
 
+const budgetFormSubmitButton = budgetItemForm
+  ? budgetItemForm.querySelector('button[type="submit"]')
+  : null;
+const BUDGET_FORM_CREATE_LABEL = budgetFormSubmitButton
+  ? budgetFormSubmitButton.textContent.trim()
+  : 'Agregar gasto';
+const BUDGET_FORM_EDIT_LABEL = 'Guardar cambios';
+let budgetFormCancelButton = null;
+let budgetEditingItemId = null;
+
+const resetBudgetItemFormInputs = () => {
+  if (budgetItemForm) {
+    budgetItemForm.reset();
+  }
+};
+
+const exitBudgetEditMode = ({ focus = false } = {}) => {
+  budgetEditingItemId = null;
+
+  if (budgetItemForm) {
+    delete budgetItemForm.dataset.mode;
+  }
+
+  if (budgetFormSubmitButton) {
+    budgetFormSubmitButton.textContent = BUDGET_FORM_CREATE_LABEL;
+  }
+
+  if (budgetFormCancelButton) {
+    budgetFormCancelButton.remove();
+    budgetFormCancelButton = null;
+  }
+
+  if (focus && budgetTitleInput) {
+    budgetTitleInput.focus();
+  }
+};
+
+const handleBudgetFormCancel = () => {
+  resetBudgetItemFormInputs();
+  exitBudgetEditMode({ focus: true });
+};
+
+const ensureBudgetFormCancelButton = () => {
+  if (budgetFormCancelButton || !budgetItemForm) {
+    return budgetFormCancelButton;
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'button button--ghost budget-form__cancel';
+  button.textContent = 'Cancelar';
+  button.addEventListener('click', handleBudgetFormCancel);
+
+  budgetFormCancelButton = button;
+
+  if (budgetFormSubmitButton) {
+    budgetFormSubmitButton.insertAdjacentElement('afterend', button);
+  } else {
+    budgetItemForm.append(button);
+  }
+
+  return budgetFormCancelButton;
+};
+
+const enterBudgetEditMode = (item, { focus = true, scrollIntoView = true } = {}) => {
+  if (!budgetItemForm || !item || !item.id) {
+    return;
+  }
+
+  budgetEditingItemId = item.id;
+  budgetItemForm.dataset.mode = 'edit';
+  resetBudgetItemFormInputs();
+
+  if (budgetTitleInput) {
+    budgetTitleInput.value = item.title || '';
+  }
+
+  if (budgetCategoryInput) {
+    budgetCategoryInput.value = item.category || '';
+  }
+
+  if (budgetEstimateInput) {
+    budgetEstimateInput.value = Number.isFinite(item.est) ? String(item.est) : '';
+  }
+
+  if (budgetActualInput) {
+    budgetActualInput.value = Number.isFinite(item.act) ? String(item.act) : '';
+  }
+
+  if (budgetProviderInput) {
+    budgetProviderInput.value = item.provider || '';
+  }
+
+  if (budgetDateInput) {
+    budgetDateInput.value = item.dueDate || '';
+  }
+
+  if (budgetFormSubmitButton) {
+    budgetFormSubmitButton.textContent = BUDGET_FORM_EDIT_LABEL;
+  }
+
+  ensureBudgetFormCancelButton();
+
+  if (scrollIntoView) {
+    budgetItemForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (focus && budgetTitleInput) {
+    budgetTitleInput.focus();
+    budgetTitleInput.select();
+  }
+};
+
 const budgetCategoryFilter = document.getElementById('budget-category-filter');
 const budgetPaidFilter = document.getElementById('budget-paid-filter');
 const budgetTableBody = document.getElementById('budget-table-body');
@@ -6763,12 +6876,17 @@ const createBudgetRow = (item) => {
 
   const actionsCell = document.createElement('td');
   actionsCell.className = 'budget-table__cell budget-table__cell--actions';
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'budget-row__edit';
+  editButton.textContent = 'Editar';
+  editButton.setAttribute('aria-label', `Editar gasto: ${item.title}`);
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'budget-row__delete';
   deleteButton.textContent = 'Eliminar';
   deleteButton.setAttribute('aria-label', `Eliminar gasto: ${item.title}`);
-  actionsCell.append(deleteButton);
+  actionsCell.append(editButton, deleteButton);
 
   row.append(
     titleCell,
@@ -6845,19 +6963,46 @@ const handleBudgetItemSubmit = (event) => {
     dueDate: budgetDateInput ? budgetDateInput.value : '',
   };
 
-  const submission = budgetStore.addItem(payload);
+  const isEditing = Boolean(budgetEditingItemId);
+  const itemId = budgetEditingItemId;
+  let submission;
 
-  budgetItemForm.reset();
+  if (isEditing && itemId) {
+    submission = budgetStore.updateItem(itemId, payload);
+  } else {
+    submission = budgetStore.addItem(payload);
+    resetBudgetItemFormInputs();
+    exitBudgetEditMode();
 
-  if (budgetTitleInput) {
-    budgetTitleInput.focus();
+    if (budgetTitleInput) {
+      budgetTitleInput.focus();
+    }
   }
 
-  if (submission && typeof submission.catch === 'function') {
-    submission.catch((error) => {
-      console.error('No se pudo guardar el gasto.', error);
-      alert('No se pudo guardar el gasto. Inténtalo nuevamente.');
-    });
+  if (submission && typeof submission.then === 'function') {
+    submission
+      .then(() => {
+        if (isEditing && budgetEditingItemId === itemId) {
+          resetBudgetItemFormInputs();
+          exitBudgetEditMode({ focus: true });
+        }
+      })
+      .catch((error) => {
+        console.error('No se pudo guardar el gasto.', error);
+        alert('No se pudo guardar el gasto. Inténtalo nuevamente.');
+
+        if (isEditing) {
+          if (budgetTitleInput) {
+            budgetTitleInput.focus();
+            budgetTitleInput.select();
+          }
+        } else if (budgetTitleInput) {
+          budgetTitleInput.focus();
+        }
+      });
+  } else if (isEditing) {
+    resetBudgetItemFormInputs();
+    exitBudgetEditMode({ focus: true });
   }
 };
 
@@ -6944,13 +7089,7 @@ const handleBudgetTableClick = (event) => {
     return;
   }
 
-  const deleteButton = target.closest('.budget-row__delete');
-
-  if (!deleteButton) {
-    return;
-  }
-
-  const row = deleteButton.closest('tr');
+  const row = target.closest('tr');
 
   if (!row) {
     return;
@@ -6959,6 +7098,22 @@ const handleBudgetTableClick = (event) => {
   const itemId = row.dataset.id;
 
   if (!itemId) {
+    return;
+  }
+
+  if (target.closest('.budget-row__edit')) {
+    const item = budgetState.items.find((entry) => entry.id === itemId);
+
+    if (item) {
+      enterBudgetEditMode({ ...item });
+    }
+
+    return;
+  }
+
+  const deleteButton = target.closest('.budget-row__delete');
+
+  if (!deleteButton) {
     return;
   }
 
@@ -6992,6 +7147,15 @@ const initializeBudgetSection = () => {
     renderBudgetSummary();
     updateBudgetCategoryFilter();
     renderBudgetTable();
+
+    if (budgetEditingItemId) {
+      const stillExists = budgetState.items.some((item) => item.id === budgetEditingItemId);
+
+      if (!stillExists) {
+        resetBudgetItemFormInputs();
+        exitBudgetEditMode();
+      }
+    }
   });
 
   budgetStore.init();
