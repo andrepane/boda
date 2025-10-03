@@ -574,171 +574,253 @@
                 </p>
               </header>
 
-              <form id="guest-form" class="form-grid" autocomplete="off">
-                <div class="form-field form-field--full">
-                  <label class="form-label" for="guest-name">Nombre</label>
-                  <input
-                    id="guest-name"
-                    class="form-control"
-                    type="text"
-                    placeholder="Nombre completo"
-                    required
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-side">Lado</label>
-                  <select id="guest-side" class="form-control" required>
-                    <option value="novia">Novia</option>
-                    <option value="novio">Novio</option>
-                    <option value="ambos">Ambos</option>
-                  </select>
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-group">Grupo</label>
-                  <input
-                    id="guest-group"
-                    class="form-control"
-                    type="text"
-                    placeholder="Familia, amigos…"
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-room">Habitación</label>
-                  <input
-                    id="guest-room"
-                    class="form-control"
-                    type="text"
-                    placeholder="Ej. Suite 1, Habitación 202"
-                    list="guest-room-options"
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-rsvp">RSVP</label>
-                  <select id="guest-rsvp" class="form-control">
-                    <option value="pending">Pendiente</option>
-                    <option value="yes">Confirmado</option>
-                    <option value="no">Rechazado</option>
-                  </select>
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-plus">Acompañantes</label>
-                  <input
-                    id="guest-plus"
-                    class="form-control"
-                    type="number"
-                    min="0"
-                    step="1"
-                    value="0"
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-contact">Contacto</label>
-                  <input
-                    id="guest-contact"
-                    class="form-control"
-                    type="text"
-                    placeholder="Correo o teléfono"
-                  />
-                </div>
-
-                <div class="form-field">
-                  <label class="form-label" for="guest-dietary">Restricciones</label>
-                  <input
-                    id="guest-dietary"
-                    class="form-control"
-                    type="text"
-                    placeholder="Sin gluten, vegetariano…"
-                  />
-                </div>
-
-                <div class="form-field form-field--full">
-                  <label class="form-label" for="guest-notes">Notas</label>
-                  <textarea
-                    id="guest-notes"
-                    class="form-control form-control--textarea"
-                    rows="2"
-                    placeholder="Comentarios extra"
-                  ></textarea>
-                </div>
-
-                <button class="button form-submit" type="submit">Agregar invitado</button>
-              </form>
-
-              <div class="guest-summary" aria-live="polite">
-                <div class="summary__item">
-                  <span class="summary__label">Invitados</span>
-                  <strong id="guest-total" class="summary__value">0</strong>
-                </div>
-                <div class="summary__item">
-                  <span class="summary__label">Confirmados</span>
-                  <strong id="guest-confirmed" class="summary__value">0</strong>
-                </div>
-                <div class="summary__item">
-                  <span class="summary__label">Pendientes</span>
-                  <strong id="guest-pending" class="summary__value">0</strong>
-                </div>
-                <div class="summary__item">
-                  <span class="summary__label">Personas totales</span>
-                  <strong id="guest-people" class="summary__value">0</strong>
-                </div>
-              </div>
-
-              <div class="guest-toolbar">
-                <div class="guest-filter">
-                  <label class="form-label" for="guest-search">Buscar</label>
-                  <input
-                    id="guest-search"
-                    class="form-control"
-                    type="search"
-                    placeholder="Buscar por nombre"
-                  />
-                </div>
-                <div class="guest-filter">
-                  <label class="form-label" for="guest-rsvp-filter">RSVP</label>
-                  <select id="guest-rsvp-filter" class="form-control">
-                    <option value="">Todos</option>
-                    <option value="yes">Confirmados</option>
-                    <option value="pending">Pendientes</option>
-                    <option value="no">Rechazados</option>
-                  </select>
-                </div>
-                <div class="guest-filter">
-                  <label class="form-label" for="guest-group-filter">Grupo</label>
-                  <select id="guest-group-filter" class="form-control">
-                    <option value="">Todos</option>
-                  </select>
-                </div>
-                <div class="guest-filter">
-                  <label class="form-label" for="guest-room-filter">Habitación</label>
-                  <select id="guest-room-filter" class="form-control">
-                    <option value="">Todas</option>
-                    <option value="__unassigned">Sin asignar</option>
-                  </select>
-                </div>
-                <button id="guest-export" class="button button--ghost" type="button">
-                  Exportar CSV
+              <div class="guest-tabs" id="guest-tabs" role="tablist" aria-label="Vistas de invitados">
+                <button
+                  id="guest-main-tab"
+                  class="guest-tabs__tab is-active"
+                  type="button"
+                  data-target="guest-main-panel"
+                  aria-controls="guest-main-panel"
+                  aria-selected="true"
+                >
+                  Lista principal
+                </button>
+                <button
+                  id="guest-rsvps-tab"
+                  class="guest-tabs__tab"
+                  type="button"
+                  data-target="guest-rsvp-panel"
+                  aria-controls="guest-rsvp-panel"
+                  aria-selected="false"
+                >
+                  RSVPs
                 </button>
               </div>
 
-              <datalist id="guest-room-options"></datalist>
+              <div
+                id="guest-main-panel"
+                class="guest-tab-panel is-active"
+                role="tabpanel"
+                aria-labelledby="guest-main-tab"
+              >
+                <form id="guest-form" class="form-grid" autocomplete="off">
+                  <div class="form-field form-field--full">
+                    <label class="form-label" for="guest-name">Nombre</label>
+                    <input
+                      id="guest-name"
+                      class="form-control"
+                      type="text"
+                      placeholder="Nombre completo"
+                      required
+                    />
+                  </div>
 
-              <ul id="guest-list" class="guest-list" aria-live="polite"></ul>
+                  <div class="form-field">
+                    <label class="form-label" for="guest-side">Lado</label>
+                    <select id="guest-side" class="form-control" required>
+                      <option value="novia">Novia</option>
+                      <option value="novio">Novio</option>
+                      <option value="ambos">Ambos</option>
+                    </select>
+                  </div>
 
-              <section id="guest-rooms" class="guest-rooms" aria-live="polite" hidden>
-                <header class="guest-rooms__header">
-                  <h3 class="guest-rooms__title">Distribución por habitaciones</h3>
-                  <p class="guest-rooms__subtitle">
-                    Consulta quién comparte cada habitación y el total de personas asignadas.
+                  <div class="form-field">
+                    <label class="form-label" for="guest-group">Grupo</label>
+                    <input
+                      id="guest-group"
+                      class="form-control"
+                      type="text"
+                      placeholder="Familia, amigos…"
+                    />
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label" for="guest-room">Habitación</label>
+                    <input
+                      id="guest-room"
+                      class="form-control"
+                      type="text"
+                      placeholder="Ej. Suite 1, Habitación 202"
+                      list="guest-room-options"
+                    />
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label" for="guest-rsvp">RSVP</label>
+                    <select id="guest-rsvp" class="form-control">
+                      <option value="pending">Pendiente</option>
+                      <option value="yes">Confirmado</option>
+                      <option value="no">Rechazado</option>
+                    </select>
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label" for="guest-plus">Acompañantes</label>
+                    <input
+                      id="guest-plus"
+                      class="form-control"
+                      type="number"
+                      min="0"
+                      step="1"
+                      value="0"
+                    />
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label" for="guest-contact">Contacto</label>
+                    <input
+                      id="guest-contact"
+                      class="form-control"
+                      type="text"
+                      placeholder="Correo o teléfono"
+                    />
+                  </div>
+
+                  <div class="form-field">
+                    <label class="form-label" for="guest-dietary">Restricciones</label>
+                    <input
+                      id="guest-dietary"
+                      class="form-control"
+                      type="text"
+                      placeholder="Sin gluten, vegetariano…"
+                    />
+                  </div>
+
+                  <div class="form-field form-field--full">
+                    <label class="form-label" for="guest-notes">Notas</label>
+                    <textarea
+                      id="guest-notes"
+                      class="form-control form-control--textarea"
+                      rows="2"
+                      placeholder="Comentarios extra"
+                    ></textarea>
+                  </div>
+
+                  <button class="button form-submit" type="submit">Agregar invitado</button>
+                </form>
+
+                <div class="guest-summary" aria-live="polite">
+                  <div class="summary__item">
+                    <span class="summary__label">Invitados</span>
+                    <strong id="guest-total" class="summary__value">0</strong>
+                  </div>
+                  <div class="summary__item">
+                    <span class="summary__label">Confirmados</span>
+                    <strong id="guest-confirmed" class="summary__value">0</strong>
+                  </div>
+                  <div class="summary__item">
+                    <span class="summary__label">Pendientes</span>
+                    <strong id="guest-pending" class="summary__value">0</strong>
+                  </div>
+                  <div class="summary__item">
+                    <span class="summary__label">Personas totales</span>
+                    <strong id="guest-people" class="summary__value">0</strong>
+                  </div>
+                </div>
+
+                <div class="guest-toolbar">
+                  <div class="guest-filter">
+                    <label class="form-label" for="guest-search">Buscar</label>
+                    <input
+                      id="guest-search"
+                      class="form-control"
+                      type="search"
+                      placeholder="Buscar por nombre"
+                    />
+                  </div>
+                  <div class="guest-filter">
+                    <label class="form-label" for="guest-rsvp-filter">RSVP</label>
+                    <select id="guest-rsvp-filter" class="form-control">
+                      <option value="">Todos</option>
+                      <option value="yes">Confirmados</option>
+                      <option value="pending">Pendientes</option>
+                      <option value="no">Rechazados</option>
+                    </select>
+                  </div>
+                  <div class="guest-filter">
+                    <label class="form-label" for="guest-group-filter">Grupo</label>
+                    <select id="guest-group-filter" class="form-control">
+                      <option value="">Todos</option>
+                    </select>
+                  </div>
+                  <div class="guest-filter">
+                    <label class="form-label" for="guest-room-filter">Habitación</label>
+                    <select id="guest-room-filter" class="form-control">
+                      <option value="">Todas</option>
+                      <option value="__unassigned">Sin asignar</option>
+                    </select>
+                  </div>
+                  <button id="guest-export" class="button button--ghost" type="button">
+                    Exportar CSV
+                  </button>
+                </div>
+
+                <datalist id="guest-room-options"></datalist>
+
+                <ul id="guest-list" class="guest-list" aria-live="polite"></ul>
+
+                <section id="guest-rooms" class="guest-rooms" aria-live="polite" hidden>
+                  <header class="guest-rooms__header">
+                    <h3 class="guest-rooms__title">Distribución por habitaciones</h3>
+                    <p class="guest-rooms__subtitle">
+                      Consulta quién comparte cada habitación y el total de personas asignadas.
+                    </p>
+                  </header>
+                  <div id="guest-rooms-grid" class="guest-rooms__grid"></div>
+                </section>
+              </div>
+
+              <div
+                id="guest-rsvp-panel"
+                class="guest-tab-panel"
+                role="tabpanel"
+                aria-labelledby="guest-rsvps-tab"
+                hidden
+              >
+                <section class="guest-rsvp">
+                  <header class="guest-rsvp__header">
+                    <h3 class="guest-rsvp__title">Confirmaciones recibidas</h3>
+                    <p class="guest-rsvp__subtitle">
+                      Consulta las respuestas del formulario RSVP y agrégalas a la lista principal en un clic.
+                    </p>
+                  </header>
+
+                  <p id="guest-rsvp-empty" class="guest-rsvp__empty" aria-live="polite">
+                    Todavía no hay confirmaciones registradas.
                   </p>
-                </header>
-                <div id="guest-rooms-grid" class="guest-rooms__grid"></div>
-              </section>
+
+                  <div
+                    id="guest-rsvp-table-wrapper"
+                    class="table-wrapper guest-rsvp__table-wrapper"
+                    hidden
+                  >
+                    <table class="guest-rsvp__table" aria-describedby="guest-rsvp-empty">
+                      <thead>
+                        <tr>
+                          <th scope="col">Nombre</th>
+                          <th scope="col">Nº Personas</th>
+                          <th scope="col">¿Asiste?</th>
+                          <th scope="col">Fecha de respuesta</th>
+                        </tr>
+                      </thead>
+                      <tbody id="guest-rsvp-table-body"></tbody>
+                    </table>
+                  </div>
+
+                  <div id="guest-rsvp-selection" class="guest-rsvp__selection" hidden>
+                    <p id="guest-rsvp-selection-text" class="guest-rsvp__selection-text"></p>
+                    <p
+                      id="guest-rsvp-selection-notice"
+                      class="guest-rsvp__notice"
+                      aria-live="polite"
+                      hidden
+                    ></p>
+                    <button id="guest-rsvp-add" class="button" type="button">
+                      Añadir a lista de invitados
+                    </button>
+                  </div>
+                </section>
+              </div>
             </div>
           </section>
 
@@ -938,6 +1020,7 @@
       const ROOM = window.DEFAULT_ROOM_ID || "andrea-boda";
       const tasksPath = `rooms/${ROOM}/tasks`;
       const guestsPath = `rooms/${ROOM}/guests`;
+      const rsvpSubmissionsPath = `rooms/${ROOM}/rsvp_submissions`;
       const venuesPath = `rooms/${ROOM}/venues`;
       const ideasPath = `rooms/${ROOM}/ideas`;
       const timelinePath = `rooms/${ROOM}/timeline`;
@@ -1392,6 +1475,44 @@
           })
           .catch((error) => {
             console.error("No se pudo iniciar la escucha de invitados.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export function listenRsvpSubmissions(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const rsvpRef = ref(db, rsvpSubmissionsPath);
+            unsubscribe = onValue(
+              rsvpRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en RSVPs.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de RSVPs.", error);
           });
 
         return () => {
@@ -2320,6 +2441,7 @@
         updateMilestone,
         deleteMilestone,
         listenGuests,
+        listenRsvpSubmissions,
         addGuest,
         updateGuest,
         deleteGuest,
