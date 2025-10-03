@@ -1877,6 +1877,15 @@ const guestExportButton = document.getElementById('guest-export');
 const guestRoomDatalist = document.getElementById('guest-room-options');
 const guestRoomsSection = document.getElementById('guest-rooms');
 const guestRoomsGrid = document.getElementById('guest-rooms-grid');
+const guestTabButtons = document.querySelectorAll('#guest-tabs .guest-tabs__tab');
+const guestTabPanels = document.querySelectorAll('.guest-tab-panel');
+const guestRsvpTableWrapper = document.getElementById('guest-rsvp-table-wrapper');
+const guestRsvpTableBody = document.getElementById('guest-rsvp-table-body');
+const guestRsvpEmpty = document.getElementById('guest-rsvp-empty');
+const guestRsvpSelection = document.getElementById('guest-rsvp-selection');
+const guestRsvpSelectionText = document.getElementById('guest-rsvp-selection-text');
+const guestRsvpSelectionNotice = document.getElementById('guest-rsvp-selection-notice');
+const guestRsvpAddButton = document.getElementById('guest-rsvp-add');
 
 const guestCounters = {
   total: document.getElementById('guest-total'),
@@ -1932,6 +1941,245 @@ const mapGuestRecords = (records) =>
     .sort((first, second) =>
       first.name.localeCompare(second.name, 'es', { sensitivity: 'base' }),
     );
+
+const RSVP_POSITIVE_VALUES = new Set([
+  'si',
+  's',
+  'yes',
+  'y',
+  'true',
+  'asiste',
+  'asistire',
+  'asistiremos',
+  'confirmado',
+  'confirmada',
+  'confirmamos',
+  'confirmados',
+  'voy',
+  'vamos',
+  'attending',
+  'coming',
+]);
+
+const RSVP_NEGATIVE_VALUES = new Set([
+  'no',
+  'n',
+  'false',
+  'declina',
+  'declinado',
+  'declinada',
+  'rechazado',
+  'rechazada',
+  'rechazamos',
+  'cancelado',
+  'cancelada',
+  'cancelamos',
+  'noasiste',
+  'noasistire',
+  'noasistiremos',
+  'notattending',
+  'notcoming',
+  'cantgo',
+  'cannotgo',
+  'ausente',
+]);
+
+const normalizeRsvpPeopleCount = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^-?\d+$/.test(trimmed)) {
+      const numeric = Number.parseInt(trimmed, 10);
+
+      if (Number.isFinite(numeric)) {
+        return Math.max(0, numeric);
+      }
+    }
+  }
+
+  if (Array.isArray(value)) {
+    return Math.max(0, value.length);
+  }
+
+  return null;
+};
+
+const normalizeRsvpAttendingValue = (value) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value > 0) {
+      return true;
+    }
+
+    if (value === 0) {
+      return false;
+    }
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    if (/^-?\d+$/.test(trimmed)) {
+      const numeric = Number.parseInt(trimmed, 10);
+
+      if (Number.isFinite(numeric)) {
+        return numeric > 0;
+      }
+    }
+
+    const normalized = trimmed
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const compact = normalized.replace(/\s+/g, '');
+
+    if (RSVP_POSITIVE_VALUES.has(normalized) || RSVP_POSITIVE_VALUES.has(compact)) {
+      return true;
+    }
+
+    if (RSVP_NEGATIVE_VALUES.has(normalized) || RSVP_NEGATIVE_VALUES.has(compact)) {
+      return false;
+    }
+  }
+
+  return null;
+};
+
+const pickFirstNonEmptyString = (...values) => {
+  for (const value of values) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+  }
+
+  return '';
+};
+
+const normalizeRsvpSubmissionRecord = (id, record) => {
+  if (!record || typeof record !== 'object') {
+    return null;
+  }
+
+  const name = sanitizeEntityText(
+    pickFirstNonEmptyString(record.name, record.fullName, record.nombre, record.guestName),
+  );
+
+  if (!name) {
+    return null;
+  }
+
+  const peopleCount = normalizeRsvpPeopleCount(
+    record.peopleCount ??
+      record.numberOfGuests ??
+      record.totalGuests ??
+      record.guests ??
+      record.personas ??
+      record.attendees ??
+      record.invitados ??
+      record.numeroPersonas ??
+      record.cantidad ??
+      record.count,
+  );
+
+  const attending = normalizeRsvpAttendingValue(
+    record.attending ??
+      record.asistira ??
+      record.assistira ??
+      record.willAttend ??
+      record.rsvp ??
+      record.confirmation ??
+      record.confirmed ??
+      record.asistencia ??
+      record.response ??
+      record.answer,
+  );
+
+  const submittedAt = toTimestamp(
+    record.submittedAt ??
+      record.createdAt ??
+      record.timestamp ??
+      record.sentAt ??
+      record.date ??
+      record.updatedAt,
+  );
+
+  const contact = sanitizeEntityText(
+    pickFirstNonEmptyString(
+      record.contact,
+      record.email,
+      record.mail,
+      record.correo,
+      record.phone,
+      record.telefono,
+      record.whatsapp,
+    ),
+  );
+
+  const dietary = sanitizeEntityText(
+    pickFirstNonEmptyString(
+      record.dietary,
+      record.restrictions,
+      record.diet,
+      record.alimentacion,
+      record.alergias,
+    ),
+  );
+
+  const notes = sanitizeEntityText(
+    pickFirstNonEmptyString(
+      record.notes,
+      record.message,
+      record.comments,
+      record.comentarios,
+      record.observaciones,
+    ),
+  );
+
+  return {
+    id,
+    name,
+    peopleCount: Number.isFinite(peopleCount) ? peopleCount : null,
+    attending,
+    submittedAt: Number.isFinite(submittedAt) ? submittedAt : null,
+    contact,
+    dietary,
+    notes,
+  };
+};
+
+const mapRsvpSubmissionRecords = (records) =>
+  Object.entries(records ?? {})
+    .map(([id, value]) => normalizeRsvpSubmissionRecord(id, value))
+    .filter((value) => value !== null)
+    .sort((first, second) => {
+      const firstTime = typeof first.submittedAt === 'number' ? first.submittedAt : 0;
+      const secondTime = typeof second.submittedAt === 'number' ? second.submittedAt : 0;
+
+      if (firstTime !== secondTime) {
+        return secondTime - firstTime;
+      }
+
+      return first.name.localeCompare(second.name, 'es', { sensitivity: 'base' });
+    });
 
 const createGuestsStore = () => {
   let sync = null;
@@ -2063,10 +2311,388 @@ const createGuestsStore = () => {
   };
 };
 
+const createRsvpSubmissionsStore = () => {
+  let sync = null;
+  let unsubscribe = () => {};
+  let submissions = [];
+  const listeners = new Set();
+
+  const emit = () => {
+    const snapshot = submissions.map((submission) => ({ ...submission }));
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const ensureSync = async () => {
+    if (sync) {
+      return sync;
+    }
+
+    const instance = await waitForFirebaseSync();
+    if (!instance) {
+      throw new Error('SYNC_UNAVAILABLE');
+    }
+
+    sync = instance;
+    return sync;
+  };
+
+  const init = () =>
+    ensureSync()
+      .then((instance) => {
+        if (!instance || typeof instance.listenRsvpSubmissions !== 'function') {
+          return;
+        }
+
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.warn('No se pudo detener la escucha anterior de RSVPs.', error);
+        }
+
+        unsubscribe = () => {};
+
+        try {
+          const stop = instance.listenRsvpSubmissions((records) => {
+            submissions = mapRsvpSubmissionRecords(records);
+            emit();
+          });
+
+          unsubscribe = typeof stop === 'function' ? stop : () => {};
+        } catch (error) {
+          console.warn('No se pudo iniciar la escucha de RSVPs.', error);
+        }
+      })
+      .catch((error) => {
+        console.warn('No se pudo iniciar la sincronización de RSVPs.', error);
+      });
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener(submissions.map((submission) => ({ ...submission })));
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const destroy = () => {
+    try {
+      unsubscribe();
+    } catch (error) {
+      console.warn('No se pudo detener la escucha de RSVPs.', error);
+    }
+    unsubscribe = () => {};
+    listeners.clear();
+  };
+
+  const getSnapshot = () => submissions.map((submission) => ({ ...submission }));
+
+  return {
+    init,
+    subscribe,
+    destroy,
+    getSnapshot,
+  };
+};
+
 const guestsStore = createGuestsStore();
+const rsvpSubmissionsStore = createRsvpSubmissionsStore();
 
 let guestsData = [];
 let guestRawRecords = {};
+let rsvpSubmissionsData = [];
+let selectedRsvpSubmissionId = null;
+
+const guestNameExists = (name) => {
+  if (typeof name !== 'string') {
+    return false;
+  }
+
+  const normalized = name.trim().toLowerCase();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return guestsData.some((guest) => {
+    const guestName = typeof guest.name === 'string' ? guest.name.trim().toLowerCase() : '';
+    return guestName === normalized;
+  });
+};
+
+const selectGuestTabPanel = (targetId) => {
+  if (!targetId) {
+    return;
+  }
+
+  guestTabButtons.forEach((button) => {
+    const isTarget = button.dataset.target === targetId;
+    button.classList.toggle('is-active', isTarget);
+    button.setAttribute('aria-selected', String(isTarget));
+  });
+
+  guestTabPanels.forEach((panel) => {
+    const isTarget = panel.id === targetId;
+    panel.classList.toggle('is-active', isTarget);
+    panel.hidden = !isTarget;
+  });
+};
+
+const rsvpDateFormatter = new Intl.DateTimeFormat('es-ES', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+const formatRsvpAttendance = (value) => {
+  if (value === true) {
+    return '✅ Sí';
+  }
+
+  if (value === false) {
+    return '❌ No';
+  }
+
+  return '—';
+};
+
+const formatRsvpDate = (value) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return '';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return rsvpDateFormatter.format(date);
+};
+
+const setGuestRsvpNotice = (message, tone = 'info') => {
+  if (!guestRsvpSelectionNotice) {
+    return;
+  }
+
+  guestRsvpSelectionNotice.textContent = message || '';
+  guestRsvpSelectionNotice.hidden = !message;
+  guestRsvpSelectionNotice.classList.remove(
+    'guest-rsvp__notice--warning',
+    'guest-rsvp__notice--success',
+  );
+
+  if (!message) {
+    return;
+  }
+
+  if (tone === 'warning') {
+    guestRsvpSelectionNotice.classList.add('guest-rsvp__notice--warning');
+  } else if (tone === 'success') {
+    guestRsvpSelectionNotice.classList.add('guest-rsvp__notice--success');
+  }
+};
+
+const renderGuestRsvpTable = () => {
+  if (!guestRsvpTableBody || !guestRsvpEmpty || !guestRsvpTableWrapper) {
+    return;
+  }
+
+  if (!rsvpSubmissionsData.length) {
+    guestRsvpEmpty.hidden = false;
+    guestRsvpTableWrapper.hidden = true;
+    guestRsvpTableBody.textContent = '';
+
+    if (selectedRsvpSubmissionId) {
+      selectedRsvpSubmissionId = null;
+      renderGuestRsvpSelection();
+    }
+
+    return;
+  }
+
+  guestRsvpEmpty.hidden = true;
+  guestRsvpTableWrapper.hidden = false;
+
+  guestRsvpTableBody.textContent = '';
+
+  rsvpSubmissionsData.forEach((submission) => {
+    const row = document.createElement('tr');
+    row.dataset.id = submission.id;
+    row.className = 'guest-rsvp__row';
+    row.tabIndex = 0;
+
+    if (submission.id === selectedRsvpSubmissionId) {
+      row.classList.add('is-selected');
+    }
+
+    const nameCell = document.createElement('td');
+    nameCell.textContent = submission.name;
+
+    const peopleCell = document.createElement('td');
+    peopleCell.textContent = Number.isFinite(submission.peopleCount)
+      ? String(submission.peopleCount)
+      : '—';
+
+    const attendingCell = document.createElement('td');
+    attendingCell.textContent = formatRsvpAttendance(submission.attending);
+
+    const dateCell = document.createElement('td');
+    const formattedDate = formatRsvpDate(submission.submittedAt);
+    dateCell.textContent = formattedDate || '—';
+
+    row.append(nameCell, peopleCell, attendingCell, dateCell);
+    guestRsvpTableBody.append(row);
+  });
+};
+
+const renderGuestRsvpSelection = () => {
+  if (!guestRsvpSelection || !guestRsvpSelectionText) {
+    return;
+  }
+
+  const selected = selectedRsvpSubmissionId
+    ? rsvpSubmissionsData.find((item) => item.id === selectedRsvpSubmissionId)
+    : null;
+
+  if (!selected) {
+    guestRsvpSelection.hidden = true;
+    setGuestRsvpNotice('');
+
+    if (guestRsvpAddButton) {
+      guestRsvpAddButton.hidden = false;
+      guestRsvpAddButton.disabled = false;
+    }
+
+    return;
+  }
+
+  guestRsvpSelection.hidden = false;
+
+  const peopleCount = Number.isFinite(selected.peopleCount) ? selected.peopleCount : null;
+  const peopleText =
+    peopleCount === null
+      ? 'personas'
+      : `${peopleCount} ${peopleCount === 1 ? 'persona' : 'personas'}`;
+
+  guestRsvpSelectionText.textContent = `Has seleccionado “${selected.name}” (${peopleText}).`;
+
+  const exists = guestNameExists(selected.name);
+
+  if (exists) {
+    if (guestRsvpAddButton) {
+      guestRsvpAddButton.hidden = true;
+      guestRsvpAddButton.disabled = false;
+    }
+
+    setGuestRsvpNotice('Este nombre ya está en la lista principal.', 'warning');
+  } else {
+    if (guestRsvpAddButton) {
+      guestRsvpAddButton.hidden = false;
+      guestRsvpAddButton.disabled = false;
+    }
+
+    setGuestRsvpNotice('');
+  }
+};
+
+const handleGuestRsvpRowClick = (event) => {
+  const target = event.target instanceof HTMLElement ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  const row = target.closest('tr');
+
+  if (!row || !row.dataset.id) {
+    return;
+  }
+
+  selectedRsvpSubmissionId = row.dataset.id;
+  renderGuestRsvpTable();
+  renderGuestRsvpSelection();
+};
+
+const handleGuestRsvpRowKeydown = (event) => {
+  if (event.key !== 'Enter' && event.key !== ' ') {
+    return;
+  }
+
+  const target = event.target instanceof HTMLElement ? event.target : null;
+
+  if (!target) {
+    return;
+  }
+
+  const row = target.closest('tr');
+
+  if (!row || !row.dataset.id) {
+    return;
+  }
+
+  event.preventDefault();
+  selectedRsvpSubmissionId = row.dataset.id;
+  renderGuestRsvpTable();
+  renderGuestRsvpSelection();
+};
+
+const handleGuestRsvpAdd = () => {
+  if (!selectedRsvpSubmissionId) {
+    return;
+  }
+
+  const submission = rsvpSubmissionsData.find((item) => item.id === selectedRsvpSubmissionId);
+
+  if (!submission) {
+    return;
+  }
+
+  if (guestNameExists(submission.name)) {
+    setGuestRsvpNotice('Este nombre ya está en la lista principal.', 'warning');
+    return;
+  }
+
+  const peopleCount = Number.isFinite(submission.peopleCount) ? submission.peopleCount : 1;
+  const plusOnes = Math.max(0, peopleCount - 1);
+
+  const payload = {
+    name: submission.name,
+    side: 'ambos',
+    plusOnes,
+    rsvp: submission.attending === true ? 'yes' : submission.attending === false ? 'no' : 'pending',
+    contact: submission.contact,
+    dietary: submission.dietary,
+    notes: submission.notes,
+  };
+
+  const request = guestsStore.addGuest(payload);
+
+  if (!request || typeof request.then !== 'function') {
+    return;
+  }
+
+  if (guestRsvpAddButton) {
+    guestRsvpAddButton.disabled = true;
+  }
+
+  request
+    .then(() => {
+      alert('Invitado añadido a la lista principal.');
+    })
+    .catch((error) => {
+      console.error('No se pudo agregar el invitado desde RSVP.', error);
+      alert('No se pudo agregar el invitado. Inténtalo nuevamente.');
+    })
+    .finally(() => {
+      if (guestRsvpAddButton) {
+        guestRsvpAddButton.disabled = false;
+      }
+    });
+};
 
 const applyGuestFilters = (items) => {
   const search = guestFiltersState.search;
@@ -2682,7 +3308,10 @@ const handleGuestExport = () => {
 };
 
 const initializeGuestSection = () => {
-  if (!guestForm || !guestList) {
+  const hasGuestInterface = Boolean(guestForm || guestList);
+  const hasRsvpInterface = Boolean(guestRsvpTableBody);
+
+  if (!hasGuestInterface && !hasRsvpInterface) {
     return;
   }
 
@@ -2694,11 +3323,14 @@ const initializeGuestSection = () => {
     renderGuestSummary();
     renderGuestList();
     renderGuestRooms();
+    renderGuestRsvpSelection();
   });
 
   guestsStore.init();
 
-  guestForm.addEventListener('submit', handleGuestFormSubmit);
+  if (guestForm) {
+    guestForm.addEventListener('submit', handleGuestFormSubmit);
+  }
 
   if (guestSearchInput) {
     guestSearchInput.addEventListener('input', handleGuestSearchInput);
@@ -2716,11 +3348,55 @@ const initializeGuestSection = () => {
     guestRoomFilter.addEventListener('change', handleGuestRoomFilterChange);
   }
 
-  guestList.addEventListener('change', handleGuestListChange);
-  guestList.addEventListener('click', handleGuestListClick);
+  if (guestList) {
+    guestList.addEventListener('change', handleGuestListChange);
+    guestList.addEventListener('click', handleGuestListClick);
+  }
 
   if (guestExportButton) {
     guestExportButton.addEventListener('click', handleGuestExport);
+  }
+
+  if (guestTabButtons.length) {
+    guestTabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        selectGuestTabPanel(button.dataset.target);
+      });
+    });
+  }
+
+  if (hasRsvpInterface) {
+    rsvpSubmissionsStore.subscribe((submissions) => {
+      rsvpSubmissionsData = submissions;
+
+      if (
+        selectedRsvpSubmissionId &&
+        !rsvpSubmissionsData.some((submission) => submission.id === selectedRsvpSubmissionId)
+      ) {
+        selectedRsvpSubmissionId = null;
+      }
+
+      renderGuestRsvpTable();
+      renderGuestRsvpSelection();
+    });
+
+    rsvpSubmissionsStore
+      .init()
+      .catch((error) => {
+        console.warn('No se pudo iniciar la sincronización de RSVPs.', error);
+      });
+
+    if (guestRsvpTableBody) {
+      guestRsvpTableBody.addEventListener('click', handleGuestRsvpRowClick);
+      guestRsvpTableBody.addEventListener('keydown', handleGuestRsvpRowKeydown);
+    }
+
+    if (guestRsvpAddButton) {
+      guestRsvpAddButton.addEventListener('click', handleGuestRsvpAdd);
+    }
+
+    renderGuestRsvpTable();
+    renderGuestRsvpSelection();
   }
 };
 
@@ -6372,6 +7048,7 @@ window.addEventListener('beforeunload', () => {
   milestonesStore.destroy();
   venuesStore.destroy();
   guestsStore.destroy();
+  rsvpSubmissionsStore.destroy();
   ideasStore.destroy();
   budgetStore.destroy();
 });
