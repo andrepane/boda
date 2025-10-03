@@ -945,6 +945,8 @@
       const budgetMetaPath = `${budgetPath}/meta`;
       const budgetItemsPath = `${budgetPath}/items`;
 
+      const TASK_PRIORITY_VALUES = new Set(["alta", "media", "baja"]);
+
       function ensureSync() {
         if (!window.ENABLE_SYNC) {
           throw new Error("SYNC_OFF");
@@ -1117,6 +1119,56 @@
             completed: Boolean(completed),
             updatedAt: Date.now(),
           });
+        } catch (error) {
+          console.error("No se pudo actualizar la tarea en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateTask(taskId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        if (!taskId) {
+          throw new Error("ID de tarea inválido");
+        }
+
+        const sanitized = {};
+
+        if (changes && typeof changes === "object") {
+          if (Object.prototype.hasOwnProperty.call(changes, "priority")) {
+            const rawPriority = typeof changes.priority === "string" ? changes.priority.trim() : "";
+
+            if (TASK_PRIORITY_VALUES.has(rawPriority)) {
+              sanitized.priority = rawPriority;
+            }
+          }
+
+          if (Object.prototype.hasOwnProperty.call(changes, "completed")) {
+            sanitized.completed = Boolean(changes.completed);
+          }
+
+          if (Object.prototype.hasOwnProperty.call(changes, "updatedAt")) {
+            const timestamp = changes.updatedAt;
+
+            if (typeof timestamp === "number" && Number.isFinite(timestamp)) {
+              sanitized.updatedAt = timestamp;
+            }
+          }
+        }
+
+        if (!Object.keys(sanitized).length) {
+          return;
+        }
+
+        if (!Object.prototype.hasOwnProperty.call(sanitized, "updatedAt")) {
+          sanitized.updatedAt = Date.now();
+        }
+
+        const taskRef = ref(db, `${tasksPath}/${taskId}`);
+
+        try {
+          await update(taskRef, sanitized);
         } catch (error) {
           console.error("No se pudo actualizar la tarea en Firebase.", error);
           throw error;
@@ -2261,6 +2313,7 @@
         listenTasks,
         addTask,
         toggleTask,
+        updateTask,
         deleteTask,
         listenMilestones,
         addMilestone,

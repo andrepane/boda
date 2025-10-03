@@ -386,6 +386,8 @@ const createFirebaseController = (syncInstance = getFirebaseSync()) => {
     return null;
   }
 
+  const supportsUpdateTask = typeof sync.updateTask === 'function';
+
   return {
     listen(onTasks) {
       const unsubscribe = sync.listenTasks((records) => {
@@ -404,6 +406,13 @@ const createFirebaseController = (syncInstance = getFirebaseSync()) => {
     async deleteTask(taskId) {
       await sync.deleteTask(taskId);
     },
+    ...(supportsUpdateTask
+      ? {
+          async updateTask(taskId, changes) {
+            await sync.updateTask(taskId, changes);
+          },
+        }
+      : {}),
   };
 };
 
@@ -733,17 +742,54 @@ const createTaskStore = () => {
   };
 
   const updateTask = (taskId, changes) => {
+    if (!taskId || !changes || typeof changes !== 'object') {
+      return Promise.resolve();
+    }
+
     const previousTasks = currentTasks.map((item) => ({ ...item }));
-    const hasCompletionChange = Object.prototype.hasOwnProperty.call(changes, 'completed');
     const now = Date.now();
+    const combinedChanges = { ...changes, updatedAt: now };
+    const sanitizedChanges = Object.entries(combinedChanges).reduce((accumulator, [key, value]) => {
+      if (value !== undefined) {
+        accumulator[key] = value;
+      }
+
+      return accumulator;
+    }, {});
+
+    if (Object.keys(sanitizedChanges).length === 0) {
+      return Promise.resolve();
+    }
 
     setTasks(
       currentTasks.map((task) =>
-        task.id === taskId ? { ...task, ...changes, updatedAt: now } : task,
+        task.id === taskId ? { ...task, ...sanitizedChanges } : task,
       ),
     );
 
-    if (!remoteController || !hasCompletionChange) {
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    const canUpdateRemotely = typeof remoteController.updateTask === 'function';
+
+    if (canUpdateRemotely) {
+      return remoteController.updateTask(taskId, sanitizedChanges).catch((error) => {
+        console.error('Fallo al actualizar la tarea en Firebase.', error);
+
+        if (isSyncDisabledError(error)) {
+          stopRemoteListener();
+          stopRemoteListener = () => {};
+          remoteController = null;
+          return;
+        }
+
+        setTasks(previousTasks);
+        throw error;
+      });
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(changes, 'completed')) {
       return Promise.resolve();
     }
 
