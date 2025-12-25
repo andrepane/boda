@@ -791,12 +791,12 @@ h6,
 
 @media (max-width: 480px) {
   body {
-    --body-padding: clamp(0.85rem, 6vw, 1.2rem);
+    --body-padding: clamp(0.6rem, 5vw, 0.95rem);
   }
 
   .app {
     border-radius: 18px;
-    padding: 1.15rem;
+    padding: 1rem;
     gap: 1.3rem;
   }
 
@@ -818,6 +818,24 @@ h6,
 
   .task__checkbox {
     margin-top: 0;
+  }
+
+  .timeline::before {
+    left: 6px;
+  }
+
+  .timeline__item {
+    padding-left: 34px;
+  }
+
+  .timeline__marker {
+    top: 22px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .timeline__card {
+    padding: 0.95rem 1rem;
   }
 }
 
