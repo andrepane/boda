@@ -20,6 +20,12 @@ tabs.forEach((tab) => {
   });
 });
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js');
+  });
+}
+
 const CATEGORY_OPTIONS = [
   { value: 'decoracion', label: 'Decoración' },
   { value: 'papeleo', label: 'Papeleo' },
@@ -7216,5 +7222,4 @@ window.addEventListener('beforeunload', () => {
   ideasStore.destroy();
   budgetStore.destroy();
 });
-
 
