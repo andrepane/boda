@@ -1638,6 +1638,17 @@ h6,
   margin-bottom: 0.35rem;
 }
 
+.trip-card__proscons-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.trip-card__proscons-list li + li {
+  margin-top: 0.2rem;
+}
+
 .trip-card__proscons-text {
   margin: 0;
   color: var(--text-muted);
