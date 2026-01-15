@@ -6359,6 +6359,245 @@ const persistTripsToStorage = (trips) => {
   }
 };
 
+const mapRemoteSnapshotToTrips = (records) => {
+  if (!records || typeof records !== 'object') {
+    return [];
+  }
+
+  return Object.entries(records)
+    .map(([id, value]) => normalizeTripRecord({ ...value, id }))
+    .filter((trip) => trip !== null);
+};
+
+const createTripsController = (syncInstance = getFirebaseSync()) => {
+  const sync = syncInstance;
+
+  if (
+    !sync ||
+    typeof sync.listenTrips !== 'function' ||
+    typeof sync.addTrip !== 'function' ||
+    typeof sync.updateTrip !== 'function' ||
+    typeof sync.deleteTrip !== 'function'
+  ) {
+    return null;
+  }
+
+  return {
+    listen(onTrips) {
+      const unsubscribe = sync.listenTrips((records) => {
+        const trips = mapRemoteSnapshotToTrips(records);
+        onTrips(trips);
+      });
+
+      return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    },
+    async addTrip(trip) {
+      await sync.addTrip(trip);
+    },
+    async updateTrip(tripId, changes) {
+      await sync.updateTrip(tripId, changes);
+    },
+    async deleteTrip(tripId) {
+      await sync.deleteTrip(tripId);
+    },
+  };
+};
+
+const createTripsStore = () => {
+  let currentTrips = loadTripsFromStorage().map((trip) => ({ ...trip }));
+  const listeners = new Set();
+  let remoteController = null;
+  let stopRemoteListener = () => {};
+
+  const emit = () => {
+    const snapshot = currentTrips.map((trip) => ({ ...trip }));
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const setTrips = (nextTrips, { persist = true } = {}) => {
+    currentTrips = nextTrips.map((trip) => ({ ...trip }));
+
+    if (persist) {
+      persistTripsToStorage(currentTrips);
+    }
+
+    emit();
+  };
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener(currentTrips.map((trip) => ({ ...trip })));
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const startRemoteSync = () => {
+    if (remoteController) {
+      return true;
+    }
+
+    const controller = createTripsController();
+
+    if (!controller) {
+      return false;
+    }
+
+    stopRemoteListener();
+    stopRemoteListener = () => {};
+    remoteController = controller;
+
+    try {
+      const unsubscribe = controller.listen((remoteTrips) => {
+        setTrips(remoteTrips);
+      });
+
+      stopRemoteListener =
+        typeof unsubscribe === 'function' ? () => unsubscribe() : () => {};
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+
+    return true;
+  };
+
+  const init = async () => {
+    try {
+      if (startRemoteSync()) {
+        return;
+      }
+
+      await waitForFirebaseSync();
+
+      startRemoteSync();
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+  };
+
+  const addTrip = (trip) => {
+    const previousTrips = currentTrips.map((item) => ({ ...item }));
+
+    setTrips([trip, ...currentTrips]);
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.addTrip(trip).catch((error) => {
+      console.error('Fallo al sincronizar el destino con Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setTrips(previousTrips);
+      throw error;
+    });
+  };
+
+  const updateTrip = (tripId, changes) => {
+    if (!tripId || !changes || typeof changes !== 'object') {
+      return Promise.resolve();
+    }
+
+    const previousTrips = currentTrips.map((item) => ({ ...item }));
+    const now = Date.now();
+    const combinedChanges = { ...changes, updatedAt: now };
+    const sanitizedChanges = Object.entries(combinedChanges).reduce((accumulator, [key, value]) => {
+      if (value !== undefined) {
+        accumulator[key] = value;
+      }
+
+      return accumulator;
+    }, {});
+
+    if (Object.keys(sanitizedChanges).length === 0) {
+      return Promise.resolve();
+    }
+
+    setTrips(
+      currentTrips.map((trip) =>
+        trip.id === tripId ? { ...trip, ...sanitizedChanges } : trip,
+      ),
+    );
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.updateTrip(tripId, sanitizedChanges).catch((error) => {
+      console.error('Fallo al actualizar el destino en Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setTrips(previousTrips);
+      throw error;
+    });
+  };
+
+  const deleteTrip = (tripId) => {
+    const previousTrips = currentTrips.map((item) => ({ ...item }));
+
+    setTrips(currentTrips.filter((trip) => trip.id !== tripId));
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.deleteTrip(tripId).catch((error) => {
+      console.error('Fallo al eliminar el destino en Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setTrips(previousTrips);
+      throw error;
+    });
+  };
+
+  const destroy = () => {
+    try {
+      stopRemoteListener();
+    } catch (error) {
+      console.warn('No se pudo detener la sincronización de destinos.', error);
+    }
+
+    stopRemoteListener = () => {};
+    remoteController = null;
+    listeners.clear();
+  };
+
+  const getSnapshot = () => currentTrips.map((trip) => ({ ...trip }));
+
+  return {
+    subscribe,
+    init,
+    addTrip,
+    updateTrip,
+    deleteTrip,
+    destroy,
+    getSnapshot,
+  };
+};
+
 const applyTripFilters = (trips) => {
   const statusFilter =
     tripStatusFilter && tripStatusFilter.value ? tripStatusFilter.value : 'todas';
@@ -6562,7 +6801,9 @@ const createTripCard = (trip) => {
   return card;
 };
 
-let tripsData = loadTripsFromStorage();
+const tripsStore = createTripsStore();
+let tripsData = [];
+let stopTripsSubscription = () => {};
 
 const renderTrips = () => {
   if (!tripsGrid) {
@@ -6595,21 +6836,14 @@ const renderTrips = () => {
 };
 
 const updateTripRecord = (tripId, changes) => {
-  const index = tripsData.findIndex((trip) => trip.id === tripId);
+  const update = tripsStore.updateTrip(tripId, changes);
 
-  if (index === -1) {
-    return;
+  if (update && typeof update.catch === 'function') {
+    update.catch((error) => {
+      console.error('No se pudo actualizar el destino.', error);
+      alert('No se pudo actualizar el destino. Revisa tu conexión e inténtalo nuevamente.');
+    });
   }
-
-  const updated = {
-    ...tripsData[index],
-    ...changes,
-    updatedAt: Date.now(),
-  };
-
-  tripsData = [updated, ...tripsData.filter((trip) => trip.id !== tripId)];
-  persistTripsToStorage(tripsData);
-  renderTrips();
 };
 
 const handleTripFormSubmit = (event) => {
@@ -6642,9 +6876,14 @@ const handleTripFormSubmit = (event) => {
     return;
   }
 
-  tripsData = [payload, ...tripsData];
-  persistTripsToStorage(tripsData);
-  renderTrips();
+  const submission = tripsStore.addTrip(payload);
+
+  if (submission && typeof submission.catch === 'function') {
+    submission.catch((error) => {
+      console.error('No se pudo guardar el destino.', error);
+      alert('No se pudo guardar el destino. Revisa tu conexión e inténtalo nuevamente.');
+    });
+  }
 
   if (tripForm) {
     tripForm.reset();
@@ -6694,15 +6933,32 @@ const handleTripGridClick = (event) => {
     return;
   }
 
-  tripsData = tripsData.filter((trip) => trip.id !== card.dataset.id);
-  persistTripsToStorage(tripsData);
-  renderTrips();
+  const removal = tripsStore.deleteTrip(card.dataset.id);
+
+  if (removal && typeof removal.catch === 'function') {
+    removal.catch((error) => {
+      console.error('No se pudo eliminar el destino.', error);
+      alert('No se pudo eliminar el destino. Revisa tu conexión e inténtalo nuevamente.');
+    });
+  }
 };
 
 const initializeTripSection = () => {
   if (!tripForm || !tripsGrid) {
     return;
   }
+
+  stopTripsSubscription();
+  stopTripsSubscription = tripsStore.subscribe((nextTrips) => {
+    tripsData = nextTrips;
+    renderTrips();
+  });
+
+  tripsStore
+    .init()
+    .catch((error) => {
+      console.warn('No se pudo iniciar la sincronización del viaje.', error);
+    });
 
   tripForm.addEventListener('submit', handleTripFormSubmit);
 
