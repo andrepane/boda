@@ -90,6 +90,16 @@
             >
               Presupuesto
             </button>
+            <button
+              id="viaje-tab"
+              class="tabs__tab"
+              type="button"
+              data-target="viaje"
+              aria-controls="viaje"
+              aria-selected="false"
+            >
+              Viaje
+            </button>
           </nav>
         </header>
 
@@ -977,6 +987,173 @@
                   <tbody id="budget-table-body"></tbody>
                 </table>
               </div>
+            </div>
+          </section>
+
+          <section id="viaje" class="tab-content" role="tabpanel" aria-labelledby="viaje-tab">
+            <div class="panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Viaje</h2>
+                <p class="panel__subtitle">
+                  Plantea destinos, compara pros y contras y estima los costes del viaje de novios.
+                </p>
+              </header>
+
+              <form id="trip-form" class="form-grid trip-form" autocomplete="off">
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="trip-destination">Destino</label>
+                  <input
+                    id="trip-destination"
+                    class="form-control"
+                    type="text"
+                    placeholder="Japón, Riviera Maya..."
+                    required
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-country">País o región</label>
+                  <input
+                    id="trip-country"
+                    class="form-control"
+                    type="text"
+                    placeholder="Ej. Italia, Caribe"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-travel-mode">Forma de viajar</label>
+                  <select id="trip-travel-mode" class="form-control">
+                    <option value="avion" selected>Avión</option>
+                    <option value="tren">Tren</option>
+                    <option value="coche">Coche</option>
+                    <option value="crucero">Crucero</option>
+                    <option value="mixto">Mixto</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-duration">Duración</label>
+                  <input
+                    id="trip-duration"
+                    class="form-control"
+                    type="text"
+                    placeholder="Ej. 10 noches"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-season">Mejor época</label>
+                  <input
+                    id="trip-season"
+                    class="form-control"
+                    type="text"
+                    placeholder="Primavera, septiembre..."
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-price">Presupuesto estimado</label>
+                  <input
+                    id="trip-price"
+                    class="form-control"
+                    type="number"
+                    min="0"
+                    step="1"
+                    inputmode="numeric"
+                    placeholder="€"
+                  />
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="trip-status">Estado</label>
+                  <select id="trip-status" class="form-control">
+                    <option value="candidato" selected>Candidato</option>
+                    <option value="favorito">Favorito</option>
+                    <option value="descartado">Descartado</option>
+                  </select>
+                </div>
+
+                <div class="form-field form-field--full trip-form__proscons">
+                  <div class="trip-form__column">
+                    <label class="form-label" for="trip-pros">Pros</label>
+                    <textarea
+                      id="trip-pros"
+                      class="form-control form-control--textarea"
+                      rows="2"
+                      placeholder="Playas, cultura, actividades..."
+                    ></textarea>
+                  </div>
+
+                  <div class="trip-form__column">
+                    <label class="form-label" for="trip-cons">Contras</label>
+                    <textarea
+                      id="trip-cons"
+                      class="form-control form-control--textarea"
+                      rows="2"
+                      placeholder="Vuelos largos, clima..."
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div class="form-field form-field--full">
+                  <label class="form-label" for="trip-notes">Notas adicionales</label>
+                  <textarea
+                    id="trip-notes"
+                    class="form-control form-control--textarea"
+                    rows="2"
+                    placeholder="Excursiones pendientes, vuelos a vigilar..."
+                  ></textarea>
+                </div>
+
+                <button class="button form-submit" type="submit">Agregar destino</button>
+              </form>
+
+              <div class="trips-summary" aria-live="polite">
+                <div class="summary__item">
+                  <span class="summary__label">Destinos</span>
+                  <strong id="trip-total" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Favoritos</span>
+                  <strong id="trip-favorites" class="summary__value">0</strong>
+                </div>
+                <div class="summary__item">
+                  <span class="summary__label">Presupuesto medio</span>
+                  <strong id="trip-price-avg" class="summary__value">—</strong>
+                </div>
+              </div>
+
+              <div class="trips-toolbar">
+                <div class="trips-filter">
+                  <label class="form-label" for="trip-status-filter">Estado</label>
+                  <select id="trip-status-filter" class="form-control">
+                    <option value="todas">Todos</option>
+                    <option value="candidato">Candidatos</option>
+                    <option value="favorito">Favoritos</option>
+                    <option value="descartado">Descartados</option>
+                  </select>
+                </div>
+                <div class="trips-filter">
+                  <label class="form-label" for="trip-sort">Ordenar</label>
+                  <select id="trip-sort" class="form-control">
+                    <option value="recent" selected>Más recientes</option>
+                    <option value="price-asc">Precio ascendente</option>
+                    <option value="price-desc">Precio descendente</option>
+                  </select>
+                </div>
+                <div class="trips-filter trips-filter--search">
+                  <label class="form-label" for="trip-search">Buscar</label>
+                  <input
+                    id="trip-search"
+                    class="form-control"
+                    type="search"
+                    placeholder="Buscar por destino"
+                  />
+                </div>
+              </div>
+
+              <div id="trips-grid" class="trips-grid" aria-live="polite"></div>
             </div>
           </section>
         </main>
@@ -2484,4 +2661,3 @@
     <script src="app.js" defer></script>
   </body>
 </html>
-
