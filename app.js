@@ -427,6 +427,11 @@ const isSyncDisabledError = (error) =>
     error &&
       typeof error === 'object' &&
       (error.message === 'SYNC_OFF' ||
+        error.code === 'PERMISSION_DENIED' ||
+        error.code === 'permission_denied' ||
+        (typeof error.message === 'string' &&
+          (error.message.toLowerCase().includes('permission_denied') ||
+            error.message.toLowerCase().includes('permission denied'))) ||
         error.code === 'SYNC_OFF' ||
         error.code === 'auth/network-request-failed' ||
         error.code === 'unavailable'),
