@@ -960,6 +960,11 @@ h6,
   min-height: 52px;
 }
 
+.trip-form__cancel {
+  align-self: end;
+  min-height: 52px;
+}
+
 .timeline-form {
   margin-top: 1.4rem;
 }
@@ -1360,6 +1365,7 @@ h6,
 .guest-card__delete,
 .budget-row__edit,
 .budget-row__delete,
+.trip-card__edit,
 .trip-card__delete {
   border: none;
   font: inherit;
@@ -1389,6 +1395,12 @@ h6,
   box-shadow: 0 4px 10px rgba(111, 91, 139, 0.18);
 }
 
+.trip-card__edit {
+  background: rgba(111, 91, 139, 0.16);
+  color: var(--brand-dark);
+  box-shadow: 0 4px 10px rgba(111, 91, 139, 0.18);
+}
+
 .idea-card__delete,
 .guest-card__delete,
 .budget-row__delete,
@@ -1403,12 +1415,17 @@ h6,
 .guest-card__delete:hover,
 .budget-row__edit:hover,
 .budget-row__delete:hover,
+.trip-card__edit:hover,
 .trip-card__delete:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(45, 35, 56, 0.18);
 }
 
 .budget-row__edit:hover {
+  background: rgba(111, 91, 139, 0.24);
+}
+
+.trip-card__edit:hover {
   background: rgba(111, 91, 139, 0.24);
 }
 
