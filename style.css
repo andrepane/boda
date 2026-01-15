@@ -1686,6 +1686,12 @@ h6,
   justify-content: space-between;
 }
 
+.trip-card__buttons {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 .trip-card__status {
   border-radius: 12px;
   border: 1px solid rgba(111, 91, 139, 0.2);
