@@ -6208,6 +6208,15 @@ const tripStatusFilter = document.getElementById('trip-status-filter');
 const tripSortSelect = document.getElementById('trip-sort');
 const tripSearchInput = document.getElementById('trip-search');
 const tripsGrid = document.getElementById('trips-grid');
+const tripFormSubmitButton = tripForm
+  ? tripForm.querySelector('button[type="submit"]')
+  : null;
+const TRIP_FORM_CREATE_LABEL = tripFormSubmitButton
+  ? tripFormSubmitButton.textContent.trim()
+  : 'Agregar destino';
+const TRIP_FORM_EDIT_LABEL = 'Guardar cambios';
+let tripFormCancelButton = null;
+let tripEditingId = null;
 
 const tripSummaryElements = {
   total: document.getElementById('trip-total'),
@@ -6795,12 +6804,18 @@ const createTripCard = (trip) => {
     statusSelect.append(optionElement);
   });
 
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'trip-card__edit';
+  editButton.textContent = 'Editar';
+  editButton.setAttribute('aria-label', `Editar destino: ${trip.destination}`);
+
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'trip-card__delete';
   deleteButton.textContent = 'Eliminar';
 
-  actions.append(statusSelect, deleteButton);
+  actions.append(statusSelect, editButton, deleteButton);
   card.append(actions);
 
   return card;
@@ -6840,6 +6855,144 @@ const renderTrips = () => {
   updateTripSummary(tripsData);
 };
 
+const resetTripFormInputs = () => {
+  if (tripForm) {
+    tripForm.reset();
+  }
+};
+
+const exitTripEditMode = ({ focus = false } = {}) => {
+  tripEditingId = null;
+
+  if (tripForm) {
+    delete tripForm.dataset.mode;
+  }
+
+  if (tripFormSubmitButton) {
+    tripFormSubmitButton.textContent = TRIP_FORM_CREATE_LABEL;
+  }
+
+  if (tripFormCancelButton) {
+    tripFormCancelButton.remove();
+    tripFormCancelButton = null;
+  }
+
+  if (focus && tripDestinationInput) {
+    tripDestinationInput.focus();
+  }
+};
+
+const handleTripFormCancel = () => {
+  resetTripFormInputs();
+  exitTripEditMode({ focus: true });
+};
+
+const ensureTripFormCancelButton = () => {
+  if (tripFormCancelButton || !tripForm) {
+    return tripFormCancelButton;
+  }
+
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'button button--ghost trip-form__cancel';
+  button.textContent = 'Cancelar';
+  button.addEventListener('click', handleTripFormCancel);
+
+  tripFormCancelButton = button;
+
+  if (tripFormSubmitButton) {
+    tripFormSubmitButton.insertAdjacentElement('afterend', button);
+  } else {
+    tripForm.append(button);
+  }
+
+  return tripFormCancelButton;
+};
+
+const formatTripListForForm = (list) =>
+  Array.isArray(list) && list.length ? list.join('\n') : '';
+
+const enterTripEditMode = (trip, { focus = true, scrollIntoView = true } = {}) => {
+  if (!tripForm || !trip || !trip.id) {
+    return;
+  }
+
+  tripEditingId = trip.id;
+  tripForm.dataset.mode = 'edit';
+  resetTripFormInputs();
+
+  if (tripDestinationInput) {
+    tripDestinationInput.value = trip.destination || '';
+  }
+
+  if (tripTravelModeSelect) {
+    tripTravelModeSelect.value = trip.travelMode || TRIP_DEFAULT_TRAVEL_MODE;
+  }
+
+  if (tripPriceInput) {
+    tripPriceInput.value =
+      typeof trip.price === 'number' && Number.isFinite(trip.price) ? String(trip.price) : '';
+  }
+
+  if (tripStatusSelect) {
+    tripStatusSelect.value = trip.status || TRIP_DEFAULT_STATUS;
+  }
+
+  if (tripProsInput) {
+    tripProsInput.value = formatTripListForForm(trip.pros);
+  }
+
+  if (tripConsInput) {
+    tripConsInput.value = formatTripListForForm(trip.cons);
+  }
+
+  if (tripNotesInput) {
+    tripNotesInput.value = trip.notes || '';
+  }
+
+  if (tripFormSubmitButton) {
+    tripFormSubmitButton.textContent = TRIP_FORM_EDIT_LABEL;
+  }
+
+  ensureTripFormCancelButton();
+
+  if (scrollIntoView) {
+    tripForm.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  if (focus && tripDestinationInput) {
+    tripDestinationInput.focus();
+    tripDestinationInput.select();
+  }
+};
+
+const getTripFormValues = () => ({
+  destination: tripDestinationInput ? tripDestinationInput.value : '',
+  travelMode: tripTravelModeSelect ? tripTravelModeSelect.value : TRIP_DEFAULT_TRAVEL_MODE,
+  price: tripPriceInput ? tripPriceInput.value : null,
+  status: tripStatusSelect ? tripStatusSelect.value : TRIP_DEFAULT_STATUS,
+  pros: tripProsInput ? tripProsInput.value : '',
+  cons: tripConsInput ? tripConsInput.value : '',
+  notes: tripNotesInput ? tripNotesInput.value : '',
+});
+
+const buildTripPayload = (values) => {
+  const destination = sanitizeEntityText(values.destination);
+  if (!destination) {
+    return null;
+  }
+
+  return {
+    destination,
+    travelMode: normalizeTripTravelModeValue(values.travelMode),
+    price: normalizeTripPriceValue(values.price),
+    status: normalizeTripStatusValue(values.status),
+    pros: normalizeTripList(values.pros),
+    cons: normalizeTripList(values.cons),
+    notes: sanitizeEntityText(values.notes),
+  };
+};
+
 const updateTripRecord = (tripId, changes) => {
   const update = tripsStore.updateTrip(tripId, changes);
 
@@ -6849,6 +7002,8 @@ const updateTripRecord = (tripId, changes) => {
       alert('No se pudo actualizar el destino. Revisa tu conexión e inténtalo nuevamente.');
     });
   }
+
+  return update;
 };
 
 const handleTripFormSubmit = (event) => {
@@ -6858,40 +7013,63 @@ const handleTripFormSubmit = (event) => {
     return;
   }
 
-  const destination = sanitizeEntityText(tripDestinationInput.value);
-  if (!destination) {
+  const formValues = getTripFormValues();
+  const normalizedValues = buildTripPayload(formValues);
+
+  if (!normalizedValues) {
     tripDestinationInput.focus();
     return;
   }
 
-  const payload = normalizeTripRecord({
-    id: createId(),
-    destination,
-    travelMode: tripTravelModeSelect ? tripTravelModeSelect.value : TRIP_DEFAULT_TRAVEL_MODE,
-    price: tripPriceInput ? tripPriceInput.value : null,
-    status: tripStatusSelect ? tripStatusSelect.value : TRIP_DEFAULT_STATUS,
-    pros: tripProsInput ? tripProsInput.value : '',
-    cons: tripConsInput ? tripConsInput.value : '',
-    notes: tripNotesInput ? tripNotesInput.value : '',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
+  const isEditing = Boolean(tripEditingId);
+  const currentTripId = tripEditingId;
+  let submission = null;
 
-  if (!payload) {
-    return;
-  }
-
-  const submission = tripsStore.addTrip(payload);
-
-  if (submission && typeof submission.catch === 'function') {
-    submission.catch((error) => {
-      console.error('No se pudo guardar el destino.', error);
-      alert('No se pudo guardar el destino. Revisa tu conexión e inténtalo nuevamente.');
+  if (isEditing && currentTripId) {
+    submission = updateTripRecord(currentTripId, normalizedValues);
+  } else {
+    const payload = normalizeTripRecord({
+      id: createId(),
+      ...normalizedValues,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
+
+    if (!payload) {
+      return;
+    }
+
+    submission = tripsStore.addTrip(payload);
+
+    if (submission && typeof submission.catch === 'function') {
+      submission.catch((error) => {
+        console.error('No se pudo guardar el destino.', error);
+        alert('No se pudo guardar el destino. Revisa tu conexión e inténtalo nuevamente.');
+      });
+    }
   }
 
-  if (tripForm) {
-    tripForm.reset();
+  if (submission && typeof submission.then === 'function') {
+    submission
+      .then(() => {
+        if (isEditing && tripEditingId === currentTripId) {
+          resetTripFormInputs();
+          exitTripEditMode({ focus: true });
+        }
+      })
+      .catch(() => {
+        if (tripDestinationInput) {
+          tripDestinationInput.focus();
+          tripDestinationInput.select();
+        }
+      });
+  } else if (isEditing) {
+    resetTripFormInputs();
+    exitTripEditMode({ focus: true });
+  }
+
+  if (!isEditing) {
+    resetTripFormInputs();
   }
 };
 
@@ -6917,6 +7095,24 @@ const handleTripGridClick = (event) => {
   const target = event.target;
 
   if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const editButton = target.closest('.trip-card__edit');
+
+  if (editButton) {
+    const card = editButton.closest('.trip-card');
+
+    if (!card || !card.dataset.id) {
+      return;
+    }
+
+    const trip = tripsData.find((entry) => entry.id === card.dataset.id);
+
+    if (trip) {
+      enterTripEditMode({ ...trip });
+    }
+
     return;
   }
 
@@ -6957,6 +7153,15 @@ const initializeTripSection = () => {
   stopTripsSubscription = tripsStore.subscribe((nextTrips) => {
     tripsData = nextTrips;
     renderTrips();
+
+    if (tripEditingId) {
+      const stillExists = tripsData.some((trip) => trip.id === tripEditingId);
+
+      if (!stillExists) {
+        resetTripFormInputs();
+        exitTripEditMode();
+      }
+    }
   });
 
   tripsStore
