@@ -6800,7 +6800,12 @@ const createTripCard = (trip) => {
   deleteButton.className = 'trip-card__delete';
   deleteButton.textContent = 'Eliminar';
 
-  actions.append(statusSelect, deleteButton);
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'trip-card__edit';
+  editButton.textContent = 'Editar';
+
+  actions.append(statusSelect, editButton, deleteButton);
   card.append(actions);
 
   return card;
@@ -6917,6 +6922,42 @@ const handleTripGridClick = (event) => {
   const target = event.target;
 
   if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const editButton = target.closest('.trip-card__edit');
+
+  if (editButton) {
+    const card = editButton.closest('.trip-card');
+
+    if (!card || !card.dataset.id) {
+      return;
+    }
+
+    const trip = tripsData.find((entry) => entry.id === card.dataset.id);
+
+    if (!trip) {
+      return;
+    }
+
+    const nextDestination = window.prompt('Editar destino', trip.destination);
+
+    if (nextDestination === null) {
+      return;
+    }
+
+    const trimmedDestination = sanitizeEntityText(nextDestination);
+
+    if (!trimmedDestination) {
+      alert('El destino no puede quedar vacío.');
+      return;
+    }
+
+    if (trimmedDestination === trip.destination) {
+      return;
+    }
+
+    updateTripRecord(card.dataset.id, { destination: trimmedDestination });
     return;
   }
 
