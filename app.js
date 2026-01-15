@@ -6190,6 +6190,553 @@ const initializeVenuesSection = () => {
   return stopVenuesSubscription;
 };
 
+// Viaje de novios
+const tripForm = document.getElementById('trip-form');
+const tripDestinationInput = document.getElementById('trip-destination');
+const tripCountryInput = document.getElementById('trip-country');
+const tripTravelModeSelect = document.getElementById('trip-travel-mode');
+const tripDurationInput = document.getElementById('trip-duration');
+const tripSeasonInput = document.getElementById('trip-season');
+const tripPriceInput = document.getElementById('trip-price');
+const tripStatusSelect = document.getElementById('trip-status');
+const tripProsInput = document.getElementById('trip-pros');
+const tripConsInput = document.getElementById('trip-cons');
+const tripNotesInput = document.getElementById('trip-notes');
+const tripStatusFilter = document.getElementById('trip-status-filter');
+const tripSortSelect = document.getElementById('trip-sort');
+const tripSearchInput = document.getElementById('trip-search');
+const tripsGrid = document.getElementById('trips-grid');
+
+const tripSummaryElements = {
+  total: document.getElementById('trip-total'),
+  favorites: document.getElementById('trip-favorites'),
+  average: document.getElementById('trip-price-avg'),
+};
+
+const TRIP_STATUS_OPTIONS = [
+  { value: 'candidato', label: 'Candidato' },
+  { value: 'favorito', label: 'Favorito' },
+  { value: 'descartado', label: 'Descartado' },
+];
+
+const TRIP_STATUS_LABELS = TRIP_STATUS_OPTIONS.reduce((labels, option) => {
+  labels[option.value] = option.label;
+  return labels;
+}, {});
+
+const TRIP_TRAVEL_OPTIONS = [
+  { value: 'avion', label: 'Avión' },
+  { value: 'tren', label: 'Tren' },
+  { value: 'coche', label: 'Coche' },
+  { value: 'crucero', label: 'Crucero' },
+  { value: 'mixto', label: 'Mixto' },
+];
+
+const TRIP_TRAVEL_LABELS = TRIP_TRAVEL_OPTIONS.reduce((labels, option) => {
+  labels[option.value] = option.label;
+  return labels;
+}, {});
+
+const TRIP_DEFAULT_STATUS = 'candidato';
+const TRIP_DEFAULT_TRAVEL_MODE = 'avion';
+const TRIP_STORAGE_KEY = 'trip-destinations';
+
+const tripCurrencyFormatter = new Intl.NumberFormat('es-ES', {
+  style: 'currency',
+  currency: 'EUR',
+  maximumFractionDigits: 0,
+});
+
+const formatTripPrice = (value) =>
+  typeof value === 'number' && Number.isFinite(value) ? tripCurrencyFormatter.format(value) : '';
+
+const normalizeTripPriceValue = (value) => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value < 0) {
+      return null;
+    }
+
+    return Number.parseFloat(value.toFixed(2));
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const normalized = trimmed.replace(/,/g, '.');
+    const parsed = Number.parseFloat(normalized);
+
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      return Number.parseFloat(parsed.toFixed(2));
+    }
+  }
+
+  return null;
+};
+
+const normalizeTripStatusValue = (value) =>
+  Object.prototype.hasOwnProperty.call(TRIP_STATUS_LABELS, value) ? value : TRIP_DEFAULT_STATUS;
+
+const normalizeTripTravelModeValue = (value) =>
+  Object.prototype.hasOwnProperty.call(TRIP_TRAVEL_LABELS, value)
+    ? value
+    : TRIP_DEFAULT_TRAVEL_MODE;
+
+const normalizeTripRecord = (record) => {
+  if (!record || typeof record !== 'object') {
+    return null;
+  }
+
+  const destination = sanitizeEntityText(record.destination);
+
+  if (!destination) {
+    return null;
+  }
+
+  const id =
+    typeof record.id === 'string' && record.id ? record.id : createId();
+
+  return {
+    id,
+    destination,
+    country: sanitizeEntityText(record.country),
+    travelMode: normalizeTripTravelModeValue(record.travelMode),
+    duration: sanitizeEntityText(record.duration),
+    season: sanitizeEntityText(record.season),
+    price: normalizeTripPriceValue(record.price),
+    status: normalizeTripStatusValue(record.status),
+    pros: sanitizeEntityText(record.pros),
+    cons: sanitizeEntityText(record.cons),
+    notes: sanitizeEntityText(record.notes),
+    createdAt: typeof record.createdAt === 'number' ? record.createdAt : Date.now(),
+    updatedAt: typeof record.updatedAt === 'number' ? record.updatedAt : Date.now(),
+  };
+};
+
+const loadTripsFromStorage = () => {
+  try {
+    const stored = localStorage.getItem(TRIP_STORAGE_KEY);
+
+    if (!stored) {
+      return [];
+    }
+
+    const parsed = JSON.parse(stored);
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .map((record) => normalizeTripRecord(record))
+      .filter((trip) => trip !== null);
+  } catch (error) {
+    console.warn('No se pudo cargar los destinos del viaje de novios.', error);
+    return [];
+  }
+};
+
+const persistTripsToStorage = (trips) => {
+  try {
+    localStorage.setItem(
+      TRIP_STORAGE_KEY,
+      JSON.stringify(trips.map((trip) => ({ ...trip }))),
+    );
+  } catch (error) {
+    console.warn('No se pudo guardar los destinos del viaje de novios.', error);
+  }
+};
+
+const applyTripFilters = (trips) => {
+  const statusFilter =
+    tripStatusFilter && tripStatusFilter.value ? tripStatusFilter.value : 'todas';
+  const searchValue =
+    tripSearchInput && typeof tripSearchInput.value === 'string'
+      ? tripSearchInput.value.trim().toLowerCase()
+      : '';
+
+  return trips.filter((trip) => {
+    if (statusFilter !== 'todas' && trip.status !== statusFilter) {
+      return false;
+    }
+
+    if (!searchValue) {
+      return true;
+    }
+
+    const haystack = [
+      trip.destination,
+      trip.country,
+      trip.notes,
+      trip.pros,
+      trip.cons,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+
+    return haystack.includes(searchValue);
+  });
+};
+
+const sortTrips = (trips) => {
+  const sortValue = tripSortSelect ? tripSortSelect.value : 'recent';
+
+  return [...trips].sort((first, second) => {
+    if (sortValue === 'price-asc') {
+      const firstPrice =
+        typeof first.price === 'number' && Number.isFinite(first.price)
+          ? first.price
+          : Number.POSITIVE_INFINITY;
+      const secondPrice =
+        typeof second.price === 'number' && Number.isFinite(second.price)
+          ? second.price
+          : Number.POSITIVE_INFINITY;
+      return firstPrice - secondPrice;
+    }
+
+    if (sortValue === 'price-desc') {
+      const firstPrice =
+        typeof first.price === 'number' && Number.isFinite(first.price)
+          ? first.price
+          : Number.NEGATIVE_INFINITY;
+      const secondPrice =
+        typeof second.price === 'number' && Number.isFinite(second.price)
+          ? second.price
+          : Number.NEGATIVE_INFINITY;
+      return secondPrice - firstPrice;
+    }
+
+    const firstTime = typeof first.updatedAt === 'number' ? first.updatedAt : 0;
+    const secondTime = typeof second.updatedAt === 'number' ? second.updatedAt : 0;
+    return secondTime - firstTime;
+  });
+};
+
+const updateTripSummary = (trips) => {
+  if (!tripSummaryElements.total || !tripSummaryElements.favorites || !tripSummaryElements.average) {
+    return;
+  }
+
+  const total = trips.length;
+  const favorites = trips.filter((trip) => trip.status === 'favorito').length;
+  const priceValues = trips
+    .map((trip) => (typeof trip.price === 'number' && Number.isFinite(trip.price) ? trip.price : null))
+    .filter((value) => value !== null);
+
+  const average =
+    priceValues.length > 0
+      ? priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length
+      : null;
+
+  tripSummaryElements.total.textContent = String(total);
+  tripSummaryElements.favorites.textContent = String(favorites);
+  tripSummaryElements.average.textContent =
+    average === null ? '—' : formatTripPrice(average);
+};
+
+const createTripBadge = (text, className) => {
+  const badge = document.createElement('span');
+  badge.className = `trip-card__badge ${className}`;
+  badge.textContent = text;
+  return badge;
+};
+
+const createTripCard = (trip) => {
+  const card = document.createElement('article');
+  card.className = 'trip-card';
+  card.dataset.id = trip.id;
+
+  const header = document.createElement('div');
+  header.className = 'trip-card__header';
+
+  const titleWrap = document.createElement('div');
+  const title = document.createElement('h3');
+  title.className = 'trip-card__title';
+  title.textContent = trip.destination;
+  titleWrap.append(title);
+
+  if (trip.country) {
+    const subtitle = document.createElement('p');
+    subtitle.className = 'trip-card__subtitle';
+    subtitle.textContent = trip.country;
+    titleWrap.append(subtitle);
+  }
+
+  header.append(titleWrap);
+
+  const badges = document.createElement('div');
+  badges.className = 'trip-card__badges';
+  badges.append(
+    createTripBadge(TRIP_STATUS_LABELS[trip.status], `trip-card__badge--${trip.status}`),
+  );
+
+  const travelLabel = TRIP_TRAVEL_LABELS[trip.travelMode];
+  if (travelLabel) {
+    badges.append(createTripBadge(travelLabel, 'trip-card__badge--mode'));
+  }
+
+  const priceLabel = formatTripPrice(trip.price);
+  if (priceLabel) {
+    badges.append(createTripBadge(priceLabel, 'trip-card__badge--price'));
+  }
+
+  header.append(badges);
+  card.append(header);
+
+  const meta = document.createElement('div');
+  meta.className = 'trip-card__meta';
+
+  if (trip.duration) {
+    const duration = document.createElement('p');
+    duration.textContent = `Duración: ${trip.duration}`;
+    meta.append(duration);
+  }
+
+  if (trip.season) {
+    const season = document.createElement('p');
+    season.textContent = `Mejor época: ${trip.season}`;
+    meta.append(season);
+  }
+
+  if (meta.childElementCount > 0) {
+    card.append(meta);
+  }
+
+  if (trip.pros || trip.cons) {
+    const prosCons = document.createElement('div');
+    prosCons.className = 'trip-card__proscons';
+
+    if (trip.pros) {
+      const prosItem = document.createElement('div');
+      prosItem.className = 'trip-card__proscons-item trip-card__proscons-item--pros';
+      const label = document.createElement('span');
+      label.className = 'trip-card__proscons-title';
+      label.textContent = 'Pros';
+      const text = document.createElement('p');
+      text.className = 'trip-card__proscons-text';
+      text.textContent = trip.pros;
+      prosItem.append(label, text);
+      prosCons.append(prosItem);
+    }
+
+    if (trip.cons) {
+      const consItem = document.createElement('div');
+      consItem.className = 'trip-card__proscons-item trip-card__proscons-item--cons';
+      const label = document.createElement('span');
+      label.className = 'trip-card__proscons-title';
+      label.textContent = 'Contras';
+      const text = document.createElement('p');
+      text.className = 'trip-card__proscons-text';
+      text.textContent = trip.cons;
+      consItem.append(label, text);
+      prosCons.append(consItem);
+    }
+
+    card.append(prosCons);
+  }
+
+  if (trip.notes) {
+    const notes = document.createElement('p');
+    notes.className = 'trip-card__notes';
+    notes.textContent = trip.notes;
+    card.append(notes);
+  }
+
+  const actions = document.createElement('div');
+  actions.className = 'trip-card__actions';
+
+  const statusSelect = document.createElement('select');
+  statusSelect.className = 'trip-card__status';
+  statusSelect.setAttribute('aria-label', 'Estado del destino');
+
+  TRIP_STATUS_OPTIONS.forEach((option) => {
+    const optionElement = document.createElement('option');
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    optionElement.selected = option.value === trip.status;
+    statusSelect.append(optionElement);
+  });
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'trip-card__delete';
+  deleteButton.textContent = 'Eliminar';
+
+  actions.append(statusSelect, deleteButton);
+  card.append(actions);
+
+  return card;
+};
+
+let tripsData = loadTripsFromStorage();
+
+const renderTrips = () => {
+  if (!tripsGrid) {
+    return;
+  }
+
+  tripsGrid.innerHTML = '';
+
+  const filtered = applyTripFilters(tripsData);
+  const ordered = sortTrips(filtered);
+
+  if (!ordered.length) {
+    const empty = document.createElement('p');
+    empty.className = 'trips-empty';
+    empty.textContent = tripsData.length
+      ? 'No hay destinos que coincidan con la búsqueda.'
+      : 'Agrega tu primer destino para comparar opciones del viaje.';
+    tripsGrid.append(empty);
+    updateTripSummary(tripsData);
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  ordered.forEach((trip) => {
+    fragment.append(createTripCard(trip));
+  });
+
+  tripsGrid.append(fragment);
+  updateTripSummary(tripsData);
+};
+
+const updateTripRecord = (tripId, changes) => {
+  const index = tripsData.findIndex((trip) => trip.id === tripId);
+
+  if (index === -1) {
+    return;
+  }
+
+  const updated = {
+    ...tripsData[index],
+    ...changes,
+    updatedAt: Date.now(),
+  };
+
+  tripsData = [updated, ...tripsData.filter((trip) => trip.id !== tripId)];
+  persistTripsToStorage(tripsData);
+  renderTrips();
+};
+
+const handleTripFormSubmit = (event) => {
+  event.preventDefault();
+
+  if (!tripDestinationInput) {
+    return;
+  }
+
+  const destination = sanitizeEntityText(tripDestinationInput.value);
+  if (!destination) {
+    tripDestinationInput.focus();
+    return;
+  }
+
+  const payload = normalizeTripRecord({
+    id: createId(),
+    destination,
+    country: tripCountryInput ? tripCountryInput.value : '',
+    travelMode: tripTravelModeSelect ? tripTravelModeSelect.value : TRIP_DEFAULT_TRAVEL_MODE,
+    duration: tripDurationInput ? tripDurationInput.value : '',
+    season: tripSeasonInput ? tripSeasonInput.value : '',
+    price: tripPriceInput ? tripPriceInput.value : null,
+    status: tripStatusSelect ? tripStatusSelect.value : TRIP_DEFAULT_STATUS,
+    pros: tripProsInput ? tripProsInput.value : '',
+    cons: tripConsInput ? tripConsInput.value : '',
+    notes: tripNotesInput ? tripNotesInput.value : '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  });
+
+  if (!payload) {
+    return;
+  }
+
+  tripsData = [payload, ...tripsData];
+  persistTripsToStorage(tripsData);
+  renderTrips();
+
+  if (tripForm) {
+    tripForm.reset();
+  }
+};
+
+const handleTripGridChange = (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLSelectElement)) {
+    return;
+  }
+
+  const card = target.closest('.trip-card');
+
+  if (!card || !card.dataset.id) {
+    return;
+  }
+
+  if (target.classList.contains('trip-card__status')) {
+    updateTripRecord(card.dataset.id, { status: target.value });
+  }
+};
+
+const handleTripGridClick = (event) => {
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const deleteButton = target.closest('.trip-card__delete');
+
+  if (!deleteButton) {
+    return;
+  }
+
+  const card = deleteButton.closest('.trip-card');
+
+  if (!card || !card.dataset.id) {
+    return;
+  }
+
+  const confirmed = window.confirm('¿Quieres eliminar este destino?');
+
+  if (!confirmed) {
+    return;
+  }
+
+  tripsData = tripsData.filter((trip) => trip.id !== card.dataset.id);
+  persistTripsToStorage(tripsData);
+  renderTrips();
+};
+
+const initializeTripSection = () => {
+  if (!tripForm || !tripsGrid) {
+    return;
+  }
+
+  tripForm.addEventListener('submit', handleTripFormSubmit);
+
+  if (tripStatusFilter) {
+    tripStatusFilter.addEventListener('change', renderTrips);
+  }
+
+  if (tripSortSelect) {
+    tripSortSelect.addEventListener('change', renderTrips);
+  }
+
+  if (tripSearchInput) {
+    tripSearchInput.addEventListener('input', renderTrips);
+  }
+
+  tripsGrid.addEventListener('change', handleTripGridChange);
+  tripsGrid.addEventListener('click', handleTripGridClick);
+
+  renderTrips();
+};
+
 // Presupuesto
 const budgetTargetForm = document.getElementById('budget-target-form');
 const budgetTargetInput = document.getElementById('budget-target');
@@ -7199,6 +7746,7 @@ initializeTimelineSection();
 initializeGuestSection();
 initializeIdeasSection();
 initializeVenuesSection();
+initializeTripSection();
 initializeBudgetSection();
 selectTab('checklist');
 
@@ -7222,4 +7770,3 @@ window.addEventListener('beforeunload', () => {
   ideasStore.destroy();
   budgetStore.destroy();
 });
-
