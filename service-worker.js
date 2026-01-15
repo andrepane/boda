@@ -1,4 +1,4 @@
-const CACHE_NAME = 'boda-pwa-v1';
+const CACHE_NAME = 'boda-pwa-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
