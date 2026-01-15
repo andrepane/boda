@@ -6193,10 +6193,7 @@ const initializeVenuesSection = () => {
 // Viaje de novios
 const tripForm = document.getElementById('trip-form');
 const tripDestinationInput = document.getElementById('trip-destination');
-const tripCountryInput = document.getElementById('trip-country');
 const tripTravelModeSelect = document.getElementById('trip-travel-mode');
-const tripDurationInput = document.getElementById('trip-duration');
-const tripSeasonInput = document.getElementById('trip-season');
 const tripPriceInput = document.getElementById('trip-price');
 const tripStatusSelect = document.getElementById('trip-status');
 const tripProsInput = document.getElementById('trip-pros');
@@ -6285,6 +6282,21 @@ const normalizeTripTravelModeValue = (value) =>
     ? value
     : TRIP_DEFAULT_TRAVEL_MODE;
 
+const normalizeTripList = (value) => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeEntityText(entry)).filter(Boolean);
+  }
+
+  if (typeof value === 'string') {
+    return value
+      .split(/[\n,]+/)
+      .map((entry) => sanitizeEntityText(entry))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
 const normalizeTripRecord = (record) => {
   if (!record || typeof record !== 'object') {
     return null;
@@ -6302,14 +6314,11 @@ const normalizeTripRecord = (record) => {
   return {
     id,
     destination,
-    country: sanitizeEntityText(record.country),
     travelMode: normalizeTripTravelModeValue(record.travelMode),
-    duration: sanitizeEntityText(record.duration),
-    season: sanitizeEntityText(record.season),
     price: normalizeTripPriceValue(record.price),
     status: normalizeTripStatusValue(record.status),
-    pros: sanitizeEntityText(record.pros),
-    cons: sanitizeEntityText(record.cons),
+    pros: normalizeTripList(record.pros),
+    cons: normalizeTripList(record.cons),
     notes: sanitizeEntityText(record.notes),
     createdAt: typeof record.createdAt === 'number' ? record.createdAt : Date.now(),
     updatedAt: typeof record.updatedAt === 'number' ? record.updatedAt : Date.now(),
@@ -6369,10 +6378,9 @@ const applyTripFilters = (trips) => {
 
     const haystack = [
       trip.destination,
-      trip.country,
       trip.notes,
-      trip.pros,
-      trip.cons,
+      trip.pros && trip.pros.length ? trip.pros.join(' ') : '',
+      trip.cons && trip.cons.length ? trip.cons.join(' ') : '',
     ]
       .filter(Boolean)
       .join(' ')
@@ -6459,13 +6467,6 @@ const createTripCard = (trip) => {
   title.textContent = trip.destination;
   titleWrap.append(title);
 
-  if (trip.country) {
-    const subtitle = document.createElement('p');
-    subtitle.className = 'trip-card__subtitle';
-    subtitle.textContent = trip.country;
-    titleWrap.append(subtitle);
-  }
-
   header.append(titleWrap);
 
   const badges = document.createElement('div');
@@ -6487,52 +6488,41 @@ const createTripCard = (trip) => {
   header.append(badges);
   card.append(header);
 
-  const meta = document.createElement('div');
-  meta.className = 'trip-card__meta';
-
-  if (trip.duration) {
-    const duration = document.createElement('p');
-    duration.textContent = `Duración: ${trip.duration}`;
-    meta.append(duration);
-  }
-
-  if (trip.season) {
-    const season = document.createElement('p');
-    season.textContent = `Mejor época: ${trip.season}`;
-    meta.append(season);
-  }
-
-  if (meta.childElementCount > 0) {
-    card.append(meta);
-  }
-
-  if (trip.pros || trip.cons) {
+  if ((trip.pros && trip.pros.length) || (trip.cons && trip.cons.length)) {
     const prosCons = document.createElement('div');
     prosCons.className = 'trip-card__proscons';
 
-    if (trip.pros) {
+    if (trip.pros && trip.pros.length) {
       const prosItem = document.createElement('div');
       prosItem.className = 'trip-card__proscons-item trip-card__proscons-item--pros';
       const label = document.createElement('span');
       label.className = 'trip-card__proscons-title';
       label.textContent = 'Pros';
-      const text = document.createElement('p');
-      text.className = 'trip-card__proscons-text';
-      text.textContent = trip.pros;
-      prosItem.append(label, text);
+      const list = document.createElement('ul');
+      list.className = 'trip-card__proscons-list';
+      trip.pros.forEach((entry) => {
+        const item = document.createElement('li');
+        item.textContent = entry;
+        list.append(item);
+      });
+      prosItem.append(label, list);
       prosCons.append(prosItem);
     }
 
-    if (trip.cons) {
+    if (trip.cons && trip.cons.length) {
       const consItem = document.createElement('div');
       consItem.className = 'trip-card__proscons-item trip-card__proscons-item--cons';
       const label = document.createElement('span');
       label.className = 'trip-card__proscons-title';
       label.textContent = 'Contras';
-      const text = document.createElement('p');
-      text.className = 'trip-card__proscons-text';
-      text.textContent = trip.cons;
-      consItem.append(label, text);
+      const list = document.createElement('ul');
+      list.className = 'trip-card__proscons-list';
+      trip.cons.forEach((entry) => {
+        const item = document.createElement('li');
+        item.textContent = entry;
+        list.append(item);
+      });
+      consItem.append(label, list);
       prosCons.append(consItem);
     }
 
@@ -6638,10 +6628,7 @@ const handleTripFormSubmit = (event) => {
   const payload = normalizeTripRecord({
     id: createId(),
     destination,
-    country: tripCountryInput ? tripCountryInput.value : '',
     travelMode: tripTravelModeSelect ? tripTravelModeSelect.value : TRIP_DEFAULT_TRAVEL_MODE,
-    duration: tripDurationInput ? tripDurationInput.value : '',
-    season: tripSeasonInput ? tripSeasonInput.value : '',
     price: tripPriceInput ? tripPriceInput.value : null,
     status: tripStatusSelect ? tripStatusSelect.value : TRIP_DEFAULT_STATUS,
     pros: tripProsInput ? tripProsInput.value : '',
