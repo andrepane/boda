@@ -6815,7 +6815,11 @@ const createTripCard = (trip) => {
   deleteButton.className = 'trip-card__delete';
   deleteButton.textContent = 'Eliminar';
 
-  actions.append(statusSelect, editButton, deleteButton);
+  const actionButtons = document.createElement('div');
+  actionButtons.className = 'trip-card__buttons';
+  actionButtons.append(editButton, deleteButton);
+
+  actions.append(statusSelect, actionButtons);
   card.append(actions);
 
   return card;
