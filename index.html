@@ -1178,6 +1178,7 @@
       const rsvpSubmissionsPath = `rooms/${ROOM}/rsvp_submissions`;
       const venuesPath = `rooms/${ROOM}/venues`;
       const ideasPath = `rooms/${ROOM}/ideas`;
+      const tripsPath = `rooms/${ROOM}/trips`;
       const timelinePath = `rooms/${ROOM}/timeline`;
       const budgetPath = `rooms/${ROOM}/budget`;
       const budgetMetaPath = `${budgetPath}/meta`;
@@ -2405,6 +2406,183 @@
         }
       }
 
+      const TRIP_STATUS_VALUES = new Set(["candidato", "favorito", "descartado"]);
+      const TRIP_TRAVEL_VALUES = new Set(["avion", "tren", "coche", "crucero", "mixto"]);
+
+      const normalizeTripStatus = (value) =>
+        TRIP_STATUS_VALUES.has(value) ? value : "candidato";
+
+      const normalizeTripTravelMode = (value) =>
+        TRIP_TRAVEL_VALUES.has(value) ? value : "avion";
+
+      const normalizeTripPrice = (value) => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value >= 0 ? Number.parseFloat(value.toFixed(2)) : null;
+        }
+
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return null;
+          }
+
+          const parsed = Number.parseFloat(trimmed.replace(/,/g, "."));
+          if (Number.isFinite(parsed) && parsed >= 0) {
+            return Number.parseFloat(parsed.toFixed(2));
+          }
+        }
+
+        return null;
+      };
+
+      const normalizeTripList = (value) => {
+        if (Array.isArray(value)) {
+          return value.map((entry) => sanitizeText(entry)).filter(Boolean);
+        }
+
+        if (typeof value === "string") {
+          return value
+            .split(/[\n,]+/)
+            .map((entry) => sanitizeText(entry))
+            .filter(Boolean);
+        }
+
+        return [];
+      };
+
+      export function listenTrips(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const tripsRef = ref(db, tripsPath);
+            unsubscribe = onValue(
+              tripsRef,
+              (snapshot) => {
+                const value = snapshot.val() ?? {};
+                callback(value);
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en viajes.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de viajes.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function addTrip(trip) {
+        await waitForAuth();
+        ensureSync();
+
+        const tripsRef = ref(db, tripsPath);
+        const now = Date.now();
+        const currentUser = auth.currentUser;
+        const destination = sanitizeText(trip?.destination);
+
+        if (!destination) {
+          throw new Error("DESTINATION_REQUIRED");
+        }
+
+        const payload = {
+          destination,
+          travelMode: normalizeTripTravelMode(trip?.travelMode),
+          price: normalizeTripPrice(trip?.price),
+          status: normalizeTripStatus(trip?.status),
+          pros: normalizeTripList(trip?.pros),
+          cons: normalizeTripList(trip?.cons),
+          notes: sanitizeText(trip?.notes),
+          createdAt: toTimestampValue(trip?.createdAt, now),
+          updatedAt: toTimestampValue(trip?.updatedAt, now),
+          createdBy:
+            sanitizeText(trip?.createdBy) || (currentUser && currentUser.uid ? currentUser.uid : null),
+        };
+
+        try {
+          await push(tripsRef, payload);
+        } catch (error) {
+          console.error("No se pudo crear el destino en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function updateTrip(tripId, changes) {
+        await waitForAuth();
+        ensureSync();
+
+        const tripRef = ref(db, `${tripsPath}/${tripId}`);
+        const payload = { updatedAt: Date.now() };
+
+        if (typeof changes?.destination === "string") {
+          const trimmed = sanitizeText(changes.destination);
+          if (trimmed) {
+            payload.destination = trimmed;
+          }
+        }
+
+        if (typeof changes?.travelMode === "string") {
+          payload.travelMode = normalizeTripTravelMode(changes.travelMode);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "price")) {
+          payload.price = normalizeTripPrice(changes.price);
+        }
+
+        if (typeof changes?.status === "string") {
+          payload.status = normalizeTripStatus(changes.status);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "pros")) {
+          payload.pros = normalizeTripList(changes.pros);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(changes ?? {}, "cons")) {
+          payload.cons = normalizeTripList(changes.cons);
+        }
+
+        if (typeof changes?.notes === "string") {
+          payload.notes = sanitizeText(changes.notes);
+        }
+
+        try {
+          await update(tripRef, payload);
+        } catch (error) {
+          console.error("No se pudo actualizar el destino en Firebase.", error);
+          throw error;
+        }
+      }
+
+      export async function deleteTrip(tripId) {
+        await waitForAuth();
+        ensureSync();
+
+        const tripRef = ref(db, `${tripsPath}/${tripId}`);
+
+        try {
+          await remove(tripRef);
+        } catch (error) {
+          console.error("No se pudo eliminar el destino en Firebase.", error);
+          throw error;
+        }
+      }
+
       export function listenBudget(callback) {
         if (!window.ENABLE_SYNC) {
           console.warn("La sincronización remota está desactivada.");
@@ -2610,6 +2788,10 @@
         addIdea,
         toggleLike,
         deleteIdea,
+        listenTrips,
+        addTrip,
+        updateTrip,
+        deleteTrip,
         listenBudget,
         setBudgetTarget,
         addBudgetItem,

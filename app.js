@@ -6236,7 +6236,6 @@ const TRIP_TRAVEL_LABELS = TRIP_TRAVEL_OPTIONS.reduce((labels, option) => {
 
 const TRIP_DEFAULT_STATUS = 'candidato';
 const TRIP_DEFAULT_TRAVEL_MODE = 'avion';
-const TRIP_STORAGE_KEY = 'trip-destinations';
 
 const tripCurrencyFormatter = new Intl.NumberFormat('es-ES', {
   style: 'currency',
@@ -6297,7 +6296,7 @@ const normalizeTripList = (value) => {
   return [];
 };
 
-const normalizeTripRecord = (record) => {
+const normalizeTripRecord = (id, record) => {
   if (!record || typeof record !== 'object') {
     return null;
   }
@@ -6308,11 +6307,15 @@ const normalizeTripRecord = (record) => {
     return null;
   }
 
-  const id =
-    typeof record.id === 'string' && record.id ? record.id : createId();
+  const tripId =
+    typeof id === 'string' && id
+      ? id
+      : typeof record.id === 'string' && record.id
+      ? record.id
+      : createId();
 
   return {
-    id,
+    id: tripId,
     destination,
     travelMode: normalizeTripTravelModeValue(record.travelMode),
     price: normalizeTripPriceValue(record.price),
@@ -6320,43 +6323,158 @@ const normalizeTripRecord = (record) => {
     pros: normalizeTripList(record.pros),
     cons: normalizeTripList(record.cons),
     notes: sanitizeEntityText(record.notes),
-    createdAt: typeof record.createdAt === 'number' ? record.createdAt : Date.now(),
-    updatedAt: typeof record.updatedAt === 'number' ? record.updatedAt : Date.now(),
+    createdAt: toTimestamp(record.createdAt),
+    updatedAt: toTimestamp(record.updatedAt),
   };
 };
 
-const loadTripsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem(TRIP_STORAGE_KEY);
+const cloneTrip = (trip) => ({
+  ...trip,
+  pros: Array.isArray(trip.pros) ? trip.pros.map((entry) => entry) : [],
+  cons: Array.isArray(trip.cons) ? trip.cons.map((entry) => entry) : [],
+});
 
-    if (!stored) {
-      return [];
+const mapTripRecords = (records) =>
+  Object.entries(records ?? {})
+    .map(([id, value]) => normalizeTripRecord(id, value))
+    .filter((trip) => trip !== null)
+    .sort((first, second) => {
+      const firstTime =
+        typeof first.updatedAt === 'number'
+          ? first.updatedAt
+          : typeof first.createdAt === 'number'
+          ? first.createdAt
+          : 0;
+      const secondTime =
+        typeof second.updatedAt === 'number'
+          ? second.updatedAt
+          : typeof second.createdAt === 'number'
+          ? second.createdAt
+          : 0;
+
+      return secondTime - firstTime;
+    });
+
+const createTripsStore = () => {
+  let sync = null;
+  let unsubscribe = () => {};
+  let trips = [];
+  let rawRecords = {};
+  const listeners = new Set();
+
+  const emit = () => {
+    const snapshot = {
+      trips: trips.map((trip) => cloneTrip(trip)),
+      raw: { ...rawRecords },
+    };
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const ensureSync = async () => {
+    if (sync) {
+      return sync;
     }
 
-    const parsed = JSON.parse(stored);
+    const instance = await waitForFirebaseSync();
 
-    if (!Array.isArray(parsed)) {
-      return [];
+    if (!instance) {
+      throw new Error('SYNC_UNAVAILABLE');
     }
 
-    return parsed
-      .map((record) => normalizeTripRecord(record))
-      .filter((trip) => trip !== null);
-  } catch (error) {
-    console.warn('No se pudo cargar los destinos del viaje de novios.', error);
-    return [];
-  }
-};
+    sync = instance;
+    return sync;
+  };
 
-const persistTripsToStorage = (trips) => {
-  try {
-    localStorage.setItem(
-      TRIP_STORAGE_KEY,
-      JSON.stringify(trips.map((trip) => ({ ...trip }))),
-    );
-  } catch (error) {
-    console.warn('No se pudo guardar los destinos del viaje de novios.', error);
-  }
+  const init = () =>
+    ensureSync()
+      .then((instance) => {
+        if (!instance || typeof instance.listenTrips !== 'function') {
+          return;
+        }
+
+        unsubscribe();
+        unsubscribe = () => {};
+
+        try {
+          const stop = instance.listenTrips((records) => {
+            rawRecords = records ?? {};
+            trips = mapTripRecords(records);
+            emit();
+          });
+
+          unsubscribe = typeof stop === 'function' ? stop : () => {};
+        } catch (error) {
+          console.warn('No se pudo iniciar la escucha del viaje de novios.', error);
+        }
+      })
+      .catch((error) => {
+        console.warn('No se pudo iniciar la sincronización del viaje de novios.', error);
+      });
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener({
+      trips: trips.map((trip) => cloneTrip(trip)),
+      raw: { ...rawRecords },
+    });
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const addTrip = (payload) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.addTrip !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.addTrip(payload);
+    });
+
+  const updateTrip = (tripId, changes) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.updateTrip !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.updateTrip(tripId, changes);
+    });
+
+  const deleteTrip = (tripId) =>
+    ensureSync().then((instance) => {
+      if (!instance || typeof instance.deleteTrip !== 'function') {
+        throw new Error('SYNC_UNAVAILABLE');
+      }
+
+      return instance.deleteTrip(tripId);
+    });
+
+  const destroy = () => {
+    try {
+      unsubscribe();
+    } catch (error) {
+      console.warn('No se pudo detener la escucha del viaje de novios.', error);
+    }
+
+    unsubscribe = () => {};
+    listeners.clear();
+  };
+
+  const getSnapshot = () => ({
+    trips: trips.map((trip) => cloneTrip(trip)),
+    raw: { ...rawRecords },
+  });
+
+  return {
+    init,
+    subscribe,
+    addTrip,
+    updateTrip,
+    deleteTrip,
+    destroy,
+    getSnapshot,
+  };
 };
 
 const applyTripFilters = (trips) => {
@@ -6562,7 +6680,9 @@ const createTripCard = (trip) => {
   return card;
 };
 
-let tripsData = loadTripsFromStorage();
+const tripsStore = createTripsStore();
+let tripsData = [];
+let stopTripsSubscription = () => {};
 
 const renderTrips = () => {
   if (!tripsGrid) {
@@ -6595,21 +6715,11 @@ const renderTrips = () => {
 };
 
 const updateTripRecord = (tripId, changes) => {
-  const index = tripsData.findIndex((trip) => trip.id === tripId);
-
-  if (index === -1) {
-    return;
+  if (!tripId || !changes || typeof changes !== 'object') {
+    return null;
   }
 
-  const updated = {
-    ...tripsData[index],
-    ...changes,
-    updatedAt: Date.now(),
-  };
-
-  tripsData = [updated, ...tripsData.filter((trip) => trip.id !== tripId)];
-  persistTripsToStorage(tripsData);
-  renderTrips();
+  return tripsStore.updateTrip(tripId, changes);
 };
 
 const handleTripFormSubmit = (event) => {
@@ -6625,8 +6735,8 @@ const handleTripFormSubmit = (event) => {
     return;
   }
 
-  const payload = normalizeTripRecord({
-    id: createId(),
+  const now = Date.now();
+  const payload = {
     destination,
     travelMode: tripTravelModeSelect ? tripTravelModeSelect.value : TRIP_DEFAULT_TRAVEL_MODE,
     price: tripPriceInput ? tripPriceInput.value : null,
@@ -6634,20 +6744,21 @@ const handleTripFormSubmit = (event) => {
     pros: tripProsInput ? tripProsInput.value : '',
     cons: tripConsInput ? tripConsInput.value : '',
     notes: tripNotesInput ? tripNotesInput.value : '',
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  });
+    createdAt: now,
+    updatedAt: now,
+  };
 
-  if (!payload) {
-    return;
-  }
-
-  tripsData = [payload, ...tripsData];
-  persistTripsToStorage(tripsData);
-  renderTrips();
+  const addition = tripsStore.addTrip(payload);
 
   if (tripForm) {
     tripForm.reset();
+  }
+
+  if (addition && typeof addition.catch === 'function') {
+    addition.catch((error) => {
+      console.error('No se pudo guardar el destino.', error);
+      alert('No se pudo guardar el destino. Revisa tu conexión e inténtalo nuevamente.');
+    });
   }
 };
 
@@ -6665,7 +6776,25 @@ const handleTripGridChange = (event) => {
   }
 
   if (target.classList.contains('trip-card__status')) {
-    updateTripRecord(card.dataset.id, { status: target.value });
+    const tripId = card.dataset.id;
+    const current = tripsData.find((trip) => trip.id === tripId) || null;
+    const nextStatus = normalizeTripStatusValue(target.value);
+
+    if (nextStatus !== target.value) {
+      target.value = nextStatus;
+    }
+
+    const update = updateTripRecord(tripId, { status: nextStatus });
+
+    if (update && typeof update.catch === 'function') {
+      update.catch((error) => {
+        console.error('No se pudo actualizar el estado del destino.', error);
+        alert('No se pudo actualizar el destino. Revisa tu conexión e inténtalo nuevamente.');
+        if (current) {
+          target.value = current.status;
+        }
+      });
+    }
   }
 };
 
@@ -6694,9 +6823,14 @@ const handleTripGridClick = (event) => {
     return;
   }
 
-  tripsData = tripsData.filter((trip) => trip.id !== card.dataset.id);
-  persistTripsToStorage(tripsData);
-  renderTrips();
+  const removal = tripsStore.deleteTrip(card.dataset.id);
+
+  if (removal && typeof removal.catch === 'function') {
+    removal.catch((error) => {
+      console.error('No se pudo eliminar el destino.', error);
+      alert('No se pudo eliminar el destino. Revisa tu conexión e inténtalo nuevamente.');
+    });
+  }
 };
 
 const initializeTripSection = () => {
@@ -6720,6 +6854,14 @@ const initializeTripSection = () => {
 
   tripsGrid.addEventListener('change', handleTripGridChange);
   tripsGrid.addEventListener('click', handleTripGridClick);
+
+  stopTripsSubscription();
+  stopTripsSubscription = tripsStore.subscribe((snapshot) => {
+    tripsData = snapshot.trips;
+    renderTrips();
+  });
+
+  tripsStore.init();
 
   renderTrips();
 };
@@ -7750,10 +7892,17 @@ window.addEventListener('beforeunload', () => {
     console.warn('No se pudo detener la suscripción de hitos.', error);
   }
 
+  try {
+    stopTripsSubscription();
+  } catch (error) {
+    console.warn('No se pudo detener la suscripción del viaje de novios.', error);
+  }
+
   milestonesStore.destroy();
   venuesStore.destroy();
   guestsStore.destroy();
   rsvpSubmissionsStore.destroy();
   ideasStore.destroy();
+  tripsStore.destroy();
   budgetStore.destroy();
 });
