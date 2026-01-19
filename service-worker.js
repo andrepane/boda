@@ -1,4 +1,4 @@
-const CACHE_NAME = 'boda-pwa-v2';
+const CACHE_NAME = 'boda-pwa-v4';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const PRECACHE_URLS = [
   '/app.js',
   '/manifest.json',
 ];
+const NETWORK_FIRST_URLS = new Set(['/', '/index.html', '/style.css', '/app.js']);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -32,6 +33,25 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  const requestUrl = new URL(event.request.url);
+
+  if (NETWORK_FIRST_URLS.has(requestUrl.pathname)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+          return networkResponse;
+        })
+        .catch(() =>
+          caches.match(event.request).then((cachedResponse) => cachedResponse)
+        )
+    );
     return;
   }
 
