@@ -169,11 +169,16 @@ h6,
   display: inline-flex;
   align-self: center;
   gap: 0.5rem;
+  max-width: min(100%, 860px);
   background: rgba(253, 250, 246, 0.8);
   padding: 0.35rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
 }
 
 .tabs__tab {
@@ -186,6 +191,7 @@ h6,
   border-radius: 999px;
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  flex: 0 0 auto;
 }
 
 .tabs__tab:focus-visible {
@@ -2841,6 +2847,12 @@ body.idea-image-viewer-open {
   gap: 1rem;
 }
 
+.decor-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .decor-card {
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -2849,6 +2861,18 @@ body.idea-image-viewer-open {
   padding: 1rem;
   display: grid;
   gap: 0.8rem;
+}
+
+.decor-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.decor-card__actions {
+  display: inline-flex;
+  gap: 0.35rem;
 }
 
 .decor-card__title {
@@ -2899,6 +2923,11 @@ body.idea-image-viewer-open {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.decor-btn--icon {
+  min-width: 2rem;
+  padding: 0.2rem 0.55rem;
 }
 
 .decor-btn:hover {

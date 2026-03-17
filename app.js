@@ -8188,66 +8188,108 @@ const initializeBudgetSection = () => {
 
 const DECOR_STORAGE_KEY = 'decoraciones_boda';
 
-const DECOR_DEFAULTS = {
-  ceremonia: [
-    'Arco de madera con tela y flores',
-    'Mesa pequeña para firmas',
-    'Cartel de bienvenida',
-    'Conos para pétalos',
-    'Camino hacia el altar',
-  ],
-  sillas: ['Sillas del lugar', 'Decoración con ramita', 'Sin decoración (opcional)'],
-  mesa: ['Mantel o mesa natural', 'Centro de mesa', 'Velas', 'Servilletas'],
-  espacios: ['Seating plan', 'Rincón de bienvenida', 'Photocall', 'Rincón de firmas'],
-  iluminacion: ['Guirnaldas de bombillas', 'Velas', 'Luces cálidas'],
+const DECOR_DEFAULT_CATEGORIES = [
+  {
+    id: 'ceremonia',
+    title: 'Ceremonia',
+    items: [
+      'Arco de madera con tela y flores',
+      'Mesa pequeña para firmas',
+      'Cartel de bienvenida',
+      'Conos para pétalos',
+      'Camino hacia el altar',
+    ],
+  },
+  {
+    id: 'sillas',
+    title: 'Sillas',
+    items: ['Sillas del lugar', 'Decoración con ramita', 'Sin decoración (opcional)'],
+  },
+  {
+    id: 'mesa',
+    title: 'Mesa',
+    items: ['Mantel o mesa natural', 'Centro de mesa', 'Velas', 'Servilletas'],
+  },
+  {
+    id: 'espacios',
+    title: 'Espacios',
+    items: ['Seating plan', 'Rincón de bienvenida', 'Photocall', 'Rincón de firmas'],
+  },
+  {
+    id: 'iluminacion',
+    title: 'Iluminación',
+    items: ['Guirnaldas de bombillas', 'Velas', 'Luces cálidas'],
+  },
+];
+
+const normalizeDecorText = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const createDecorCategoryId = () => `decor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const normalizeDecorCategory = (category, fallbackIndex = 0) => {
+  const normalizedTitle = normalizeDecorText(category?.title) || `Categoría ${fallbackIndex + 1}`;
+  const normalizedItems = Array.isArray(category?.items)
+    ? category.items.map((entry) => normalizeDecorText(entry)).filter(Boolean)
+    : [];
+  const normalizedId = normalizeDecorText(category?.id) || createDecorCategoryId();
+
+  return {
+    id: normalizedId,
+    title: normalizedTitle,
+    items: normalizedItems,
+  };
 };
 
-const DECOR_SECTIONS = [
-  { key: 'ceremonia', title: 'Ceremonia' },
-  { key: 'sillas', title: 'Sillas' },
-  { key: 'mesa', title: 'Mesa' },
-  { key: 'espacios', title: 'Espacios' },
-  { key: 'iluminacion', title: 'Iluminación' },
-];
+const normalizeDecorationsState = (records) => {
+  if (Array.isArray(records?.categories)) {
+    const categories = records.categories
+      .map((category, index) => normalizeDecorCategory(category, index))
+      .filter((category) => Boolean(category.title));
+    return { categories };
+  }
+
+  if (records && typeof records === 'object') {
+    const categories = Object.entries(records)
+      .filter(([, values]) => Array.isArray(values))
+      .map(([key, values], index) => ({
+        id: normalizeDecorText(key) || createDecorCategoryId(),
+        title: key.charAt(0).toUpperCase() + key.slice(1),
+        items: values.map((entry) => normalizeDecorText(entry)).filter(Boolean),
+      }))
+      .map((category, index) => normalizeDecorCategory(category, index));
+
+    if (categories.length > 0) {
+      return { categories };
+    }
+  }
+
+  return {
+    categories: DECOR_DEFAULT_CATEGORIES.map((category, index) => normalizeDecorCategory(category, index)),
+  };
+};
 
 const loadDecorations = () => {
   try {
     const raw = localStorage.getItem(DECOR_STORAGE_KEY);
 
     if (!raw) {
-      return structuredClone(DECOR_DEFAULTS);
+      return normalizeDecorationsState(null);
     }
 
-    const parsed = JSON.parse(raw);
-
-    return DECOR_SECTIONS.reduce((acc, section) => {
-      const values = Array.isArray(parsed?.[section.key]) ? parsed[section.key] : DECOR_DEFAULTS[section.key];
-      acc[section.key] = values
-        .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-        .filter(Boolean);
-      return acc;
-    }, {});
+    return normalizeDecorationsState(JSON.parse(raw));
   } catch (error) {
     console.warn('No se pudo cargar decoraciones desde localStorage.', error);
-    return structuredClone(DECOR_DEFAULTS);
+    return normalizeDecorationsState(null);
   }
 };
 
-const mapRemoteSnapshotToDecorations = (records) =>
-  DECOR_SECTIONS.reduce((acc, section) => {
-    const values = Array.isArray(records?.[section.key]) ? records[section.key] : DECOR_DEFAULTS[section.key];
-    acc[section.key] = values
-      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-      .filter(Boolean);
-    return acc;
-  }, {});
+const mapRemoteSnapshotToDecorations = (records) => normalizeDecorationsState(records);
 
-const cloneDecorationsState = (state) =>
-  DECOR_SECTIONS.reduce((acc, section) => {
-    const values = Array.isArray(state?.[section.key]) ? state[section.key] : [];
-    acc[section.key] = [...values];
-    return acc;
-  }, {});
+const cloneDecorationsState = (state) => ({
+  categories: Array.isArray(state?.categories)
+    ? state.categories.map((category, index) => normalizeDecorCategory(category, index))
+    : [],
+});
 
 const createDecorationsController = (syncInstance = getFirebaseSync()) => {
   const sync = syncInstance;
@@ -8381,13 +8423,13 @@ const decorationsStore = createDecorationsStore();
 
 const saveDecorations = (state) => {
   try {
-    localStorage.setItem(DECOR_STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(DECOR_STORAGE_KEY, JSON.stringify(cloneDecorationsState(state)));
   } catch (error) {
     console.warn('No se pudo guardar decoraciones en localStorage.', error);
   }
 };
 
-const createDecorItem = ({ text, index, sectionKey, onEdit, onDelete }) => {
+const createDecorItem = ({ text, index, categoryId, onEdit, onDelete }) => {
   const item = document.createElement('li');
   item.className = 'decor-item';
 
@@ -8402,13 +8444,13 @@ const createDecorItem = ({ text, index, sectionKey, onEdit, onDelete }) => {
   editButton.type = 'button';
   editButton.className = 'decor-btn';
   editButton.textContent = 'Editar';
-  editButton.addEventListener('click', () => onEdit(sectionKey, index, text));
+  editButton.addEventListener('click', () => onEdit(categoryId, index, text));
 
   const deleteButton = document.createElement('button');
   deleteButton.type = 'button';
   deleteButton.className = 'decor-btn decor-btn--danger';
   deleteButton.textContent = 'Eliminar';
-  deleteButton.addEventListener('click', () => onDelete(sectionKey, index, item));
+  deleteButton.addEventListener('click', () => onDelete(categoryId, index, item));
 
   actions.append(editButton, deleteButton);
   item.append(textEl, actions);
@@ -8442,13 +8484,114 @@ const initializeDecorationsSection = () => {
   const rerender = () => {
     decorGrid.textContent = '';
 
-    DECOR_SECTIONS.forEach((section) => {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'decor-toolbar';
+
+    const addCategoryButton = document.createElement('button');
+    addCategoryButton.type = 'button';
+    addCategoryButton.className = 'decor-btn decor-btn--icon';
+    addCategoryButton.textContent = '+ Nueva categoría';
+    addCategoryButton.addEventListener('click', () => {
+      const newTitle = window.prompt('Nombre de la nueva categoría');
+
+      if (newTitle === null) {
+        return;
+      }
+
+      const normalizedTitle = normalizeDecorText(newTitle);
+
+      if (!normalizedTitle) {
+        return;
+      }
+
+      decorationsStore
+        .update((state) => {
+          state.categories.push({
+            id: createDecorCategoryId(),
+            title: normalizedTitle,
+            items: [],
+          });
+          return state;
+        })
+        .catch((error) => {
+          console.warn('No se pudo crear la categoría de decoración.', error);
+        });
+    });
+
+    toolbar.append(addCategoryButton);
+    decorGrid.append(toolbar);
+
+    decorState.categories.forEach((category) => {
       const card = document.createElement('article');
       card.className = 'decor-card';
 
+      const header = document.createElement('div');
+      header.className = 'decor-card__header';
+
       const title = document.createElement('h3');
       title.className = 'decor-card__title';
-      title.textContent = section.title;
+      title.textContent = category.title;
+
+      const categoryActions = document.createElement('div');
+      categoryActions.className = 'decor-card__actions';
+
+      const renameCategoryButton = document.createElement('button');
+      renameCategoryButton.type = 'button';
+      renameCategoryButton.className = 'decor-btn decor-btn--icon';
+      renameCategoryButton.textContent = '✏️';
+      renameCategoryButton.setAttribute('aria-label', `Renombrar categoría ${category.title}`);
+      renameCategoryButton.addEventListener('click', () => {
+        const updated = window.prompt('Editar nombre de categoría', category.title);
+
+        if (updated === null) {
+          return;
+        }
+
+        const normalized = normalizeDecorText(updated);
+
+        if (!normalized) {
+          return;
+        }
+
+        decorationsStore
+          .update((state) => {
+            const target = state.categories.find((entry) => entry.id === category.id);
+
+            if (target) {
+              target.title = normalized;
+            }
+
+            return state;
+          })
+          .catch((error) => {
+            console.warn('No se pudo renombrar la categoría de decoración.', error);
+          });
+      });
+
+      const deleteCategoryButton = document.createElement('button');
+      deleteCategoryButton.type = 'button';
+      deleteCategoryButton.className = 'decor-btn decor-btn--danger decor-btn--icon';
+      deleteCategoryButton.textContent = '🗑';
+      deleteCategoryButton.setAttribute('aria-label', `Eliminar categoría ${category.title}`);
+      deleteCategoryButton.addEventListener('click', () => {
+        const shouldDelete = window.confirm(`¿Eliminar la categoría "${category.title}"?`);
+
+        if (!shouldDelete) {
+          return;
+        }
+
+        decorationsStore
+          .update((state) => {
+            state.categories = state.categories.filter((entry) => entry.id !== category.id);
+            return state;
+          })
+          .catch((error) => {
+            console.warn('No se pudo eliminar la categoría de decoración.', error);
+          });
+      });
+
+      categoryActions.append(renameCategoryButton, deleteCategoryButton);
+      header.append(title, categoryActions);
 
       const list = document.createElement('ul');
       list.className = 'decor-list';
@@ -8457,14 +8600,14 @@ const initializeDecorationsSection = () => {
       confirm.className = 'decor-confirm';
       confirm.setAttribute('aria-live', 'polite');
 
-      const editItem = (sectionKey, index, currentText) => {
+      const editItem = (categoryId, index, currentText) => {
         const updated = window.prompt('Editar elemento', currentText);
 
         if (updated === null) {
           return;
         }
 
-        const normalized = updated.trim();
+        const normalized = normalizeDecorText(updated);
 
         if (!normalized) {
           return;
@@ -8472,7 +8615,12 @@ const initializeDecorationsSection = () => {
 
         decorationsStore
           .update((state) => {
-            state[sectionKey][index] = normalized;
+            const target = state.categories.find((entry) => entry.id === categoryId);
+
+            if (target?.items[index] !== undefined) {
+              target.items[index] = normalized;
+            }
+
             return state;
           })
           .catch((error) => {
@@ -8480,12 +8628,17 @@ const initializeDecorationsSection = () => {
           });
       };
 
-      const deleteItem = (sectionKey, index, itemElement) => {
+      const deleteItem = (categoryId, index, itemElement) => {
         itemElement.classList.add('is-removing');
         window.setTimeout(() => {
           decorationsStore
             .update((state) => {
-              state[sectionKey].splice(index, 1);
+              const target = state.categories.find((entry) => entry.id === categoryId);
+
+              if (target) {
+                target.items.splice(index, 1);
+              }
+
               return state;
             })
             .catch((error) => {
@@ -8495,12 +8648,12 @@ const initializeDecorationsSection = () => {
         }, 210);
       };
 
-      decorState[section.key].forEach((text, index) => {
+      category.items.forEach((text, index) => {
         list.append(
           createDecorItem({
             text,
             index,
-            sectionKey: section.key,
+            categoryId: category.id,
             onEdit: editItem,
             onDelete: deleteItem,
           }),
@@ -8513,8 +8666,8 @@ const initializeDecorationsSection = () => {
       const input = document.createElement('input');
       input.className = 'form-control';
       input.type = 'text';
-      input.placeholder = `Añadir a ${section.title.toLowerCase()}`;
-      input.setAttribute('aria-label', `Nuevo elemento de ${section.title}`);
+      input.placeholder = `Añadir a ${category.title.toLowerCase()}`;
+      input.setAttribute('aria-label', `Nuevo elemento de ${category.title}`);
 
       const addButton = document.createElement('button');
       addButton.type = 'button';
@@ -8522,7 +8675,7 @@ const initializeDecorationsSection = () => {
       addButton.textContent = 'Añadir';
 
       const addItem = () => {
-        const value = input.value.trim();
+        const value = normalizeDecorText(input.value);
 
         if (!value) {
           return;
@@ -8530,7 +8683,12 @@ const initializeDecorationsSection = () => {
 
         decorationsStore
           .update((state) => {
-            state[section.key].push(value);
+            const target = state.categories.find((entry) => entry.id === category.id);
+
+            if (target) {
+              target.items.push(value);
+            }
+
             return state;
           })
           .then(() => {
@@ -8550,7 +8708,7 @@ const initializeDecorationsSection = () => {
       });
 
       addWrap.append(input, addButton);
-      card.append(title, list, addWrap, confirm);
+      card.append(header, list, addWrap, confirm);
       decorGrid.append(card);
     });
   };
