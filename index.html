@@ -61,6 +61,16 @@
               Ideas
             </button>
             <button
+              id="decoraciones-tab"
+              class="tabs__tab"
+              type="button"
+              data-target="decoraciones"
+              aria-controls="decoraciones"
+              aria-selected="false"
+            >
+              Decoraciones
+            </button>
+            <button
               id="lugares-tab"
               class="tabs__tab"
               type="button"
@@ -334,6 +344,19 @@
               </div>
 
               <div id="ideas-grid" class="ideas-grid" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section id="decoraciones" class="tab-content" role="tabpanel" aria-labelledby="decoraciones-tab">
+            <div class="panel decoraciones-panel">
+              <header class="panel__header">
+                <h2 class="panel__title">Decoraciones</h2>
+                <p class="panel__subtitle">
+                  Define y ajusta cada detalle de la ambientación. Los cambios se guardan automáticamente en tu dispositivo.
+                </p>
+              </header>
+
+              <div class="decoraciones-grid" id="decoraciones-grid" aria-live="polite"></div>
             </div>
           </section>
 

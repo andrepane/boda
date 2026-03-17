@@ -2833,3 +2833,131 @@ body.idea-image-viewer-open {
     height: auto;    /* por si algún navegador conserva altura previa */
   }
 }
+
+
+.decoraciones-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.decor-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 22px rgba(45, 35, 56, 0.08);
+  padding: 1rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.decor-card__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.decor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.decor-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid rgba(111, 91, 139, 0.16);
+  background: rgba(253, 250, 246, 0.85);
+  animation: decorItemEnter 0.25s ease;
+}
+
+.decor-item.is-removing {
+  animation: decorItemExit 0.22s ease forwards;
+}
+
+.decor-item__text {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.decor-item__actions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.decor-btn {
+  border: 1px solid rgba(111, 91, 139, 0.22);
+  background: #fff;
+  color: var(--brand-dark);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decor-btn:hover {
+  background: rgba(111, 91, 139, 0.08);
+}
+
+.decor-btn--danger {
+  border-color: rgba(168, 92, 107, 0.28);
+  color: #a85c6b;
+}
+
+.decor-add {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.decor-confirm {
+  min-height: 1rem;
+  font-size: 0.78rem;
+  color: #5d7f74;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.decor-confirm.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes decorItemEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes decorItemExit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    max-height: 64px;
+    margin-bottom: 0;
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+    max-height: 0;
+    margin-bottom: -0.55rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .decoraciones-grid {
+    grid-template-columns: 1fr;
+  }
+}
