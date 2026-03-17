@@ -8185,6 +8185,216 @@ const initializeBudgetSection = () => {
   budgetTableBody.addEventListener('click', handleBudgetTableClick);
 };
 
+
+const DECOR_STORAGE_KEY = 'decoraciones_boda';
+
+const DECOR_DEFAULTS = {
+  ceremonia: [
+    'Arco de madera con tela y flores',
+    'Mesa pequeña para firmas',
+    'Cartel de bienvenida',
+    'Conos para pétalos',
+    'Camino hacia el altar',
+  ],
+  sillas: ['Sillas del lugar', 'Decoración con ramita', 'Sin decoración (opcional)'],
+  mesa: ['Mantel o mesa natural', 'Centro de mesa', 'Velas', 'Servilletas'],
+  espacios: ['Seating plan', 'Rincón de bienvenida', 'Photocall', 'Rincón de firmas'],
+  iluminacion: ['Guirnaldas de bombillas', 'Velas', 'Luces cálidas'],
+};
+
+const DECOR_SECTIONS = [
+  { key: 'ceremonia', title: 'Ceremonia' },
+  { key: 'sillas', title: 'Sillas' },
+  { key: 'mesa', title: 'Mesa' },
+  { key: 'espacios', title: 'Espacios' },
+  { key: 'iluminacion', title: 'Iluminación' },
+];
+
+const loadDecorations = () => {
+  try {
+    const raw = localStorage.getItem(DECOR_STORAGE_KEY);
+
+    if (!raw) {
+      return structuredClone(DECOR_DEFAULTS);
+    }
+
+    const parsed = JSON.parse(raw);
+
+    return DECOR_SECTIONS.reduce((acc, section) => {
+      const values = Array.isArray(parsed?.[section.key]) ? parsed[section.key] : DECOR_DEFAULTS[section.key];
+      acc[section.key] = values
+        .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+        .filter(Boolean);
+      return acc;
+    }, {});
+  } catch (error) {
+    console.warn('No se pudo cargar decoraciones desde localStorage.', error);
+    return structuredClone(DECOR_DEFAULTS);
+  }
+};
+
+const saveDecorations = (state) => {
+  try {
+    localStorage.setItem(DECOR_STORAGE_KEY, JSON.stringify(state));
+  } catch (error) {
+    console.warn('No se pudo guardar decoraciones en localStorage.', error);
+  }
+};
+
+const createDecorItem = ({ text, index, sectionKey, onEdit, onDelete }) => {
+  const item = document.createElement('li');
+  item.className = 'decor-item';
+
+  const textEl = document.createElement('span');
+  textEl.className = 'decor-item__text';
+  textEl.textContent = text;
+
+  const actions = document.createElement('div');
+  actions.className = 'decor-item__actions';
+
+  const editButton = document.createElement('button');
+  editButton.type = 'button';
+  editButton.className = 'decor-btn';
+  editButton.textContent = 'Editar';
+  editButton.addEventListener('click', () => onEdit(sectionKey, index, text));
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'decor-btn decor-btn--danger';
+  deleteButton.textContent = 'Eliminar';
+  deleteButton.addEventListener('click', () => onDelete(sectionKey, index, item));
+
+  actions.append(editButton, deleteButton);
+  item.append(textEl, actions);
+
+  return item;
+};
+
+const initializeDecorationsSection = () => {
+  const decorGrid = document.getElementById('decoraciones-grid');
+
+  if (!decorGrid) {
+    return;
+  }
+
+  let decorState = loadDecorations();
+  let feedbackTimeout = null;
+
+  const setFeedback = (element, message) => {
+    element.textContent = message;
+    element.classList.add('is-visible');
+
+    if (feedbackTimeout) {
+      window.clearTimeout(feedbackTimeout);
+    }
+
+    feedbackTimeout = window.setTimeout(() => {
+      element.classList.remove('is-visible');
+    }, 1600);
+  };
+
+  const rerender = () => {
+    decorGrid.textContent = '';
+
+    DECOR_SECTIONS.forEach((section) => {
+      const card = document.createElement('article');
+      card.className = 'decor-card';
+
+      const title = document.createElement('h3');
+      title.className = 'decor-card__title';
+      title.textContent = section.title;
+
+      const list = document.createElement('ul');
+      list.className = 'decor-list';
+
+      const confirm = document.createElement('p');
+      confirm.className = 'decor-confirm';
+      confirm.setAttribute('aria-live', 'polite');
+
+      const editItem = (sectionKey, index, currentText) => {
+        const updated = window.prompt('Editar elemento', currentText);
+
+        if (updated === null) {
+          return;
+        }
+
+        const normalized = updated.trim();
+
+        if (!normalized) {
+          return;
+        }
+
+        decorState[sectionKey][index] = normalized;
+        saveDecorations(decorState);
+        rerender();
+      };
+
+      const deleteItem = (sectionKey, index, itemElement) => {
+        itemElement.classList.add('is-removing');
+        window.setTimeout(() => {
+          decorState[sectionKey].splice(index, 1);
+          saveDecorations(decorState);
+          rerender();
+          setFeedback(confirm, 'Elemento eliminado');
+        }, 210);
+      };
+
+      decorState[section.key].forEach((text, index) => {
+        list.append(
+          createDecorItem({
+            text,
+            index,
+            sectionKey: section.key,
+            onEdit: editItem,
+            onDelete: deleteItem,
+          }),
+        );
+      });
+
+      const addWrap = document.createElement('div');
+      addWrap.className = 'decor-add';
+
+      const input = document.createElement('input');
+      input.className = 'form-control';
+      input.type = 'text';
+      input.placeholder = `Añadir a ${section.title.toLowerCase()}`;
+      input.setAttribute('aria-label', `Nuevo elemento de ${section.title}`);
+
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'decor-btn';
+      addButton.textContent = 'Añadir';
+
+      const addItem = () => {
+        const value = input.value.trim();
+
+        if (!value) {
+          return;
+        }
+
+        decorState[section.key].push(value);
+        saveDecorations(decorState);
+        input.value = '';
+        rerender();
+      };
+
+      addButton.addEventListener('click', addItem);
+      input.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          addItem();
+        }
+      });
+
+      addWrap.append(input, addButton);
+      card.append(title, list, addWrap, confirm);
+      decorGrid.append(card);
+    });
+  };
+
+  rerender();
+};
+
 const initializeAppState = async () => {
   store.subscribe((nextTasks) => {
     tasks = nextTasks;
@@ -8202,6 +8412,7 @@ initializeAppState();
 initializeTimelineSection();
 initializeGuestSection();
 initializeIdeasSection();
+initializeDecorationsSection();
 initializeVenuesSection();
 initializeTripSection();
 initializeBudgetSection();
