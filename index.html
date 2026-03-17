@@ -61,6 +61,16 @@
               Ideas
             </button>
             <button
+              id="decoraciones-tab"
+              class="tabs__tab"
+              type="button"
+              data-target="decoraciones"
+              aria-controls="decoraciones"
+              aria-selected="false"
+            >
+              Decoraciones
+            </button>
+            <button
               id="lugares-tab"
               class="tabs__tab"
               type="button"
@@ -334,6 +344,66 @@
               </div>
 
               <div id="ideas-grid" class="ideas-grid" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section id="decoraciones" class="tab-content" role="tabpanel" aria-labelledby="decoraciones-tab">
+            <div class="panel decoraciones-panel">
+              <header class="panel__header decoraciones-panel__header">
+                <h2 class="panel__title">Decoración de la boda</h2>
+                <p class="panel__subtitle">Un estilo sencillo, cálido y natural</p>
+              </header>
+
+              <div class="decoraciones-grid">
+                <article class="decor-card">
+                  <h3 class="decor-card__title"><span aria-hidden="true">✨</span> Ceremonia</h3>
+                  <ul class="decor-card__list">
+                    <li>Arco de madera con tela y flores</li>
+                    <li>Mesa pequeña para detalles o firmas</li>
+                    <li>Cartel de bienvenida</li>
+                    <li>Conos para pétalos o arroz</li>
+                    <li>Camino hacia el altar (minimalista)</li>
+                  </ul>
+                </article>
+
+                <article class="decor-card">
+                  <h3 class="decor-card__title"><span aria-hidden="true">🪑</span> Sillas</h3>
+                  <ul class="decor-card__list">
+                    <li>Sillas sencillas del lugar</li>
+                    <li>Decoración ligera (ramita o flor)</li>
+                    <li>Opción sin decoración (look limpio)</li>
+                  </ul>
+                </article>
+
+                <article class="decor-card">
+                  <h3 class="decor-card__title"><span aria-hidden="true">🍽️</span> Mesa</h3>
+                  <ul class="decor-card__list">
+                    <li>Mantel o mesa natural según estética</li>
+                    <li>Centro de mesa (flores o velas)</li>
+                    <li>Velas cálidas</li>
+                    <li>Servilletas decorativas</li>
+                  </ul>
+                </article>
+
+                <article class="decor-card">
+                  <h3 class="decor-card__title"><span aria-hidden="true">📍</span> Espacios especiales</h3>
+                  <ul class="decor-card__list">
+                    <li>Seating plan</li>
+                    <li>Rincón de bienvenida</li>
+                    <li>Photocall sencillo</li>
+                    <li>Rincón de firmas</li>
+                  </ul>
+                </article>
+
+                <article class="decor-card">
+                  <h3 class="decor-card__title"><span aria-hidden="true">💡</span> Iluminación</h3>
+                  <ul class="decor-card__list">
+                    <li>Guirnaldas de bombillas cálidas</li>
+                    <li>Velas</li>
+                    <li>Luces ambientales suaves</li>
+                  </ul>
+                </article>
+              </div>
             </div>
           </section>
 

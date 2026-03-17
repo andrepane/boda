@@ -256,6 +256,65 @@ h6,
   max-width: 40rem;
 }
 
+
+.decoraciones-panel__header {
+  gap: 0.3rem;
+}
+
+.decoraciones-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+.decor-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(111, 91, 139, 0.14);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(45, 35, 56, 0.08);
+  padding: clamp(1rem, 3vw, 1.4rem);
+  transition: transform 0.24s ease, box-shadow 0.24s ease;
+}
+
+.decor-card__title {
+  margin: 0 0 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.decor-card__title span {
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+.decor-card__list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.decor-card__list li::marker {
+  color: rgba(111, 91, 139, 0.6);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .decor-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 30px rgba(45, 35, 56, 0.12);
+  }
+}
+
+@media (min-width: 780px) {
+  .decoraciones-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .checklist__form {
   display: grid;
   gap: 0.75rem;
