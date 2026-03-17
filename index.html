@@ -270,32 +270,42 @@
               <header class="panel__header">
                 <h2 class="panel__title">Ideas e inspiración</h2>
                 <p class="panel__subtitle">
-                  Guarda referencias de decoración, proveedores y detalles especiales.
+                  Organiza ideas concretas por sección y apunta dónde comprar o cómo hacerlo en casa.
                 </p>
               </header>
 
               <form id="idea-form" class="form-grid ideas-form" autocomplete="off">
+                <div class="form-field">
+                  <label class="form-label" for="idea-section">Sección</label>
+                  <select id="idea-section" class="form-control" required>
+                    <option value="ceremonia">Ceremonia</option>
+                    <option value="sillas-invitados">Sillas invitados</option>
+                    <option value="mesa-banquete">Mesa / banquete</option>
+                    <option value="espacios-extra">Espacios extra (rincones)</option>
+                    <option value="iluminacion-ambiente">Iluminación / ambiente</option>
+                  </select>
+                </div>
+
+                <div class="form-field">
+                  <label class="form-label" for="idea-source">Dónde comprar o hacer</label>
+                  <select id="idea-source" class="form-control" required>
+                    <option value="amazon">Amazon</option>
+                    <option value="shein">Shein</option>
+                    <option value="temu">Temu</option>
+                    <option value="hecho-en-casa">Hecho en casa</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+
                 <div class="form-field form-field--full">
                   <label class="form-label" for="idea-title">Título o descripción</label>
                   <input
                     id="idea-title"
                     class="form-control"
                     type="text"
-                    placeholder="Centro de mesa, invitaciones…"
+                    placeholder="Ej. Centro de mesa con velas"
                     required
                   />
-                </div>
-
-                <div class="form-field form-field--full">
-                  <label class="form-label" for="idea-images">Imágenes</label>
-                  <input
-                    id="idea-images"
-                    class="form-control form-control--file"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                  />
-                  <p class="form-hint">Sube imágenes desde tu dispositivo para crear tu tablero visual.</p>
                 </div>
 
                 <div class="form-field form-field--full">
@@ -304,7 +314,7 @@
                     id="idea-url"
                     class="form-control"
                     type="url"
-                    placeholder="https://"
+                    placeholder="https://amazon..."
                   />
                 </div>
 
@@ -328,12 +338,12 @@
                     id="idea-search"
                     class="form-control"
                     type="search"
-                    placeholder="Buscar por título o nota"
+                    placeholder="Buscar por idea, nota o tienda"
                   />
                 </div>
               </div>
 
-              <div id="ideas-grid" class="ideas-grid" aria-live="polite"></div>
+              <div id="ideas-grid" class="ideas-list" aria-live="polite"></div>
             </div>
           </section>
 
@@ -2543,7 +2553,9 @@
           title,
           url: urlValue || "",
           image: imageValue || "",
-          category: sanitizeText(idea?.category) || "Sin categoría",
+          category: sanitizeText(idea?.category) || sanitizeText(idea?.section) || "Sin categoría",
+          section: sanitizeText(idea?.section) || sanitizeText(idea?.category) || "Sin sección",
+          source: sanitizeText(idea?.source) || "Sin fuente",
           note: sanitizeText(idea?.note),
           likes: idea?.likes && typeof idea.likes === "object" ? idea.likes : {},
           createdAt: toTimestampValue(idea?.createdAt, now),

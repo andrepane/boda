@@ -3538,8 +3538,9 @@ const ideaImageViewer = createIdeaImageViewer();
 
 const ideaTitleInput = document.getElementById('idea-title');
 const ideaUrlInput = document.getElementById('idea-url');
-const ideaImagesInput = document.getElementById('idea-images');
 const ideaNoteInput = document.getElementById('idea-note');
+const ideaSectionInput = document.getElementById('idea-section');
+const ideaSourceInput = document.getElementById('idea-source');
 const ideaSearchInput = document.getElementById('idea-search');
 const ideasGrid = document.getElementById('ideas-grid');
 
@@ -3569,6 +3570,8 @@ const normalizeIdeaRecord = (id, record) => {
     title,
     url: sanitizeEntityText(record.url),
     note: sanitizeEntityText(record.note),
+    section: sanitizeEntityText(record.section || record.category),
+    source: sanitizeEntityText(record.source),
     images,
     image,
     order,
@@ -3731,6 +3734,23 @@ const ideaFilters = {
 };
 let currentIdeaUserId = null;
 
+
+const IDEA_SECTION_ORDER = [
+  'ceremonia',
+  'sillas-invitados',
+  'mesa-banquete',
+  'espacios-extra',
+  'iluminacion-ambiente',
+];
+
+const IDEA_SECTION_LABELS = {
+  'ceremonia': '💍 Ceremonia',
+  'sillas-invitados': '🪑 Sillas invitados',
+  'mesa-banquete': '🍽️ Mesa / banquete',
+  'espacios-extra': '🌿 Espacios extra (rincones)',
+  'iluminacion-ambiente': '💡 Iluminación / ambiente',
+};
+
 const applyIdeaFilters = (ideas) => {
   const search = ideaFilters.search;
 
@@ -3738,8 +3758,10 @@ const applyIdeaFilters = (ideas) => {
     if (search) {
       const title = idea.title ? idea.title.toLowerCase() : '';
       const note = idea.note ? idea.note.toLowerCase() : '';
+      const source = idea.source ? idea.source.toLowerCase() : '';
+      const section = idea.section ? idea.section.toLowerCase() : '';
 
-      if (!title.includes(search) && !note.includes(search)) {
+      if (!title.includes(search) && !note.includes(search) && !source.includes(search) && !section.includes(search)) {
         return false;
       }
     }
@@ -3753,51 +3775,7 @@ const createIdeaCard = (idea, uid) => {
   card.className = 'idea-card';
   card.dataset.id = idea.id;
 
-  const images = Array.isArray(idea.images) && idea.images.length ? idea.images : idea.image ? [idea.image] : [];
 
-  if (images.length) {
-    const media = document.createElement('div');
-    media.className = 'idea-card__media';
-
-    if (images.length > 1) {
-      media.classList.add('idea-card__media--multi');
-    }
-
-    images.forEach((source, index) => {
-      if (!source) {
-        return;
-      }
-
-      const thumb = document.createElement('button');
-      thumb.type = 'button';
-      thumb.className = 'idea-card__thumb';
-      thumb.classList.add(index === 0 ? 'idea-card__thumb--primary' : 'idea-card__thumb--secondary');
-      thumb.dataset.image = source;
-
-      if (idea.title) {
-        thumb.dataset.title = idea.title;
-      }
-
-      const previewLabel = idea.title
-        ? `Ver imagen ${index + 1} de ${idea.title}`
-        : `Ver imagen ${index + 1} de la idea`;
-      thumb.setAttribute('aria-label', previewLabel);
-      thumb.title = 'Ver imagen ampliada';
-
-      const image = document.createElement('img');
-      image.className = 'idea-card__image';
-      image.src = source;
-      image.alt = idea.title ? `Inspiración: ${idea.title}` : 'Idea guardada';
-      image.loading = 'lazy';
-      image.decoding = 'async';
-
-      thumb.append(image);
-
-      media.append(thumb);
-    });
-
-    card.append(media);
-  }
 
   const body = document.createElement('div');
   body.className = 'idea-card__body';
@@ -3823,6 +3801,13 @@ const createIdeaCard = (idea, uid) => {
     note.textContent = idea.note;
     body.append(note);
   }
+
+  const meta = document.createElement('p');
+  meta.className = 'idea-card__meta';
+  const section = idea.section || 'Sin sección';
+  const source = idea.source || 'Sin fuente';
+  meta.textContent = `Sección: ${section} · Fuente: ${source}`;
+  body.append(meta);
 
   card.append(body);
 
@@ -3865,72 +3850,6 @@ const createIdeaCard = (idea, uid) => {
   return card;
 };
 
-const readIdeaImageFiles = (input) => {
-  if (!input || !input.files || input.files.length === 0) {
-    return Promise.resolve([]);
-  }
-
-  const files = Array.from(input.files).filter((file) => Boolean(file));
-
-  if (!files.length) {
-    return Promise.resolve([]);
-  }
-
-  const hasInvalidType = files.some((file) => file.type && !file.type.startsWith('image/'));
-
-  if (hasInvalidType) {
-    const error = new Error('INVALID_IMAGE_TYPE');
-    error.code = 'INVALID_IMAGE_TYPE';
-    return Promise.reject(error);
-  }
-
-  if (typeof FileReader === 'undefined') {
-    const error = new Error('FILE_READER_UNAVAILABLE');
-    error.code = 'FILE_READER_UNAVAILABLE';
-    return Promise.reject(error);
-  }
-
-  const readFile = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        const result = typeof reader.result === 'string' ? reader.result.trim() : '';
-
-        if (result && result.startsWith('data:image/')) {
-          resolve(result);
-          return;
-        }
-
-        resolve('');
-      };
-
-      reader.onerror = () => {
-        const error = new Error('IMAGE_READ_FAILED');
-        error.code = 'IMAGE_READ_FAILED';
-        reject(error);
-      };
-
-      reader.onabort = () => {
-        const error = new Error('IMAGE_READ_ABORTED');
-        error.code = 'IMAGE_READ_ABORTED';
-        reject(error);
-      };
-
-      try {
-        reader.readAsDataURL(file);
-      } catch (error) {
-        const readError = new Error('IMAGE_READ_FAILED');
-        readError.code = 'IMAGE_READ_FAILED';
-        reject(readError);
-      }
-    });
-
-  return Promise.all(files.map((file) => readFile(file))).then((results) =>
-    results.filter((result) => Boolean(result)),
-  );
-};
-
 const renderIdeas = () => {
   if (!ideasGrid) {
     return;
@@ -3950,8 +3869,54 @@ const renderIdeas = () => {
     return;
   }
 
+  const groupedIdeas = new Map();
+
   filtered.forEach((idea) => {
-    ideasGrid.append(createIdeaCard(idea, currentIdeaUserId));
+    const sectionKey = idea.section || 'sin-seccion';
+
+    if (!groupedIdeas.has(sectionKey)) {
+      groupedIdeas.set(sectionKey, []);
+    }
+
+    groupedIdeas.get(sectionKey).push(idea);
+  });
+
+  const sortedSections = Array.from(groupedIdeas.keys()).sort((first, second) => {
+    const firstIndex = IDEA_SECTION_ORDER.indexOf(first);
+    const secondIndex = IDEA_SECTION_ORDER.indexOf(second);
+
+    if (firstIndex !== -1 && secondIndex !== -1) {
+      return firstIndex - secondIndex;
+    }
+
+    if (firstIndex !== -1) {
+      return -1;
+    }
+
+    if (secondIndex !== -1) {
+      return 1;
+    }
+
+    return first.localeCompare(second, 'es');
+  });
+
+  sortedSections.forEach((sectionKey) => {
+    const sectionContainer = document.createElement('section');
+    sectionContainer.className = 'ideas-section';
+
+    const heading = document.createElement('h3');
+    heading.className = 'ideas-section__title';
+    heading.textContent = IDEA_SECTION_LABELS[sectionKey] || sectionKey;
+
+    const sectionGrid = document.createElement('div');
+    sectionGrid.className = 'ideas-grid';
+
+    groupedIdeas.get(sectionKey).forEach((idea) => {
+      sectionGrid.append(createIdeaCard(idea, currentIdeaUserId));
+    });
+
+    sectionContainer.append(heading, sectionGrid);
+    ideasGrid.append(sectionContainer);
   });
 };
 
@@ -3962,38 +3927,13 @@ const handleIdeaFormSubmit = async (event) => {
     return;
   }
 
-  let imagesData = [];
-
-  try {
-    imagesData = await readIdeaImageFiles(ideaImagesInput);
-  } catch (error) {
-    console.error('No se pudieron procesar las imágenes seleccionadas.', error);
-
-    if (error && error.code === 'IMAGE_READ_ABORTED') {
-      return;
-    }
-
-    if (error && error.code === 'INVALID_IMAGE_TYPE') {
-      alert('Selecciona únicamente archivos de imagen válidos (JPG, PNG, HEIC…).');
-    } else if (error && error.code === 'FILE_READER_UNAVAILABLE') {
-      alert('Tu navegador no permite subir imágenes en este dispositivo.');
-    } else {
-      alert('No se pudieron leer las imágenes seleccionadas. Inténtalo nuevamente.');
-    }
-
-    return;
-  }
-
   const payload = {
     title: ideaTitleInput ? ideaTitleInput.value : '',
     url: ideaUrlInput ? ideaUrlInput.value : '',
     note: ideaNoteInput ? ideaNoteInput.value : '',
+    section: ideaSectionInput ? ideaSectionInput.value : '',
+    source: ideaSourceInput ? ideaSourceInput.value : '',
   };
-
-  if (imagesData.length) {
-    payload.images = imagesData;
-    payload.image = imagesData[0];
-  }
 
   const user = getCurrentUser();
   const uid = currentIdeaUserId || (user && user.uid ? user.uid : null);
@@ -4001,10 +3941,6 @@ const handleIdeaFormSubmit = async (event) => {
   const submission = ideasStore.addIdea(payload, uid);
 
   ideaForm.reset();
-
-  if (ideaImagesInput) {
-    ideaImagesInput.value = '';
-  }
 
   if (ideaTitleInput) {
     ideaTitleInput.focus();
