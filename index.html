@@ -1185,6 +1185,7 @@
       import {
         getDatabase,
         ref,
+        set,
         push,
         update,
         remove,
@@ -1206,6 +1207,7 @@
       const budgetPath = `rooms/${ROOM}/budget`;
       const budgetMetaPath = `${budgetPath}/meta`;
       const budgetItemsPath = `${budgetPath}/items`;
+      const decorationsPath = `rooms/${ROOM}/decoraciones`;
 
       const TASK_PRIORITY_VALUES = new Set(["alta", "media", "baja"]);
 
@@ -2798,6 +2800,55 @@
         }
       }
 
+      export function listenDecorations(callback) {
+        if (!window.ENABLE_SYNC) {
+          console.warn("La sincronización remota está desactivada.");
+          return () => {};
+        }
+
+        let unsubscribe = () => {};
+
+        waitForAuth()
+          .then(() => {
+            if (!window.ENABLE_SYNC) {
+              console.warn("La sincronización remota está desactivada.");
+              return;
+            }
+
+            const decorationsRef = ref(db, decorationsPath);
+            unsubscribe = onValue(
+              decorationsRef,
+              (snapshot) => {
+                callback(snapshot.val() ?? {});
+              },
+              (error) => {
+                console.error("Error al escuchar cambios en decoraciones.", error);
+              },
+            );
+          })
+          .catch((error) => {
+            console.error("No se pudo iniciar la escucha de decoraciones.", error);
+          });
+
+        return () => {
+          if (typeof unsubscribe === "function") {
+            unsubscribe();
+          }
+        };
+      }
+
+      export async function setDecorations(state) {
+        await waitForAuth();
+        ensureSync();
+
+        try {
+          await set(ref(db, decorationsPath), state ?? {});
+        } catch (error) {
+          console.error("No se pudo actualizar decoraciones en Firebase.", error);
+          throw error;
+        }
+      }
+
       window.FirebaseSync = {
         listenTasks,
         addTask,
@@ -2832,6 +2883,8 @@
         addBudgetItem,
         updateBudgetItem,
         deleteBudgetItem,
+        listenDecorations,
+        setDecorations,
       };
 
       window.FirebaseSession = {

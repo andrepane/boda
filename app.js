@@ -8233,6 +8233,152 @@ const loadDecorations = () => {
   }
 };
 
+const mapRemoteSnapshotToDecorations = (records) =>
+  DECOR_SECTIONS.reduce((acc, section) => {
+    const values = Array.isArray(records?.[section.key]) ? records[section.key] : DECOR_DEFAULTS[section.key];
+    acc[section.key] = values
+      .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+      .filter(Boolean);
+    return acc;
+  }, {});
+
+const cloneDecorationsState = (state) =>
+  DECOR_SECTIONS.reduce((acc, section) => {
+    const values = Array.isArray(state?.[section.key]) ? state[section.key] : [];
+    acc[section.key] = [...values];
+    return acc;
+  }, {});
+
+const createDecorationsController = (syncInstance = getFirebaseSync()) => {
+  const sync = syncInstance;
+
+  if (!sync || typeof sync.listenDecorations !== 'function' || typeof sync.setDecorations !== 'function') {
+    return null;
+  }
+
+  return {
+    listen(onDecorations) {
+      const unsubscribe = sync.listenDecorations((records) => {
+        onDecorations(mapRemoteSnapshotToDecorations(records));
+      });
+
+      return typeof unsubscribe === 'function' ? unsubscribe : () => {};
+    },
+    async setDecorations(state) {
+      await sync.setDecorations(cloneDecorationsState(state));
+    },
+  };
+};
+
+const createDecorationsStore = () => {
+  let currentState = mapRemoteSnapshotToDecorations(loadDecorations());
+  const listeners = new Set();
+  let remoteController = null;
+  let stopRemoteListener = () => {};
+
+  const emit = () => {
+    const snapshot = cloneDecorationsState(currentState);
+    listeners.forEach((listener) => listener(snapshot));
+  };
+
+  const setState = (nextState, { persist = true } = {}) => {
+    currentState = mapRemoteSnapshotToDecorations(nextState);
+
+    if (persist) {
+      saveDecorations(currentState);
+    }
+
+    emit();
+  };
+
+  const subscribe = (listener) => {
+    listeners.add(listener);
+    listener(cloneDecorationsState(currentState));
+
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const startRemoteSync = () => {
+    if (remoteController) {
+      return true;
+    }
+
+    const controller = createDecorationsController();
+
+    if (!controller) {
+      return false;
+    }
+
+    stopRemoteListener();
+    stopRemoteListener = () => {};
+    remoteController = controller;
+
+    try {
+      const unsubscribe = controller.listen((remoteState) => {
+        setState(remoteState);
+      });
+
+      stopRemoteListener = typeof unsubscribe === 'function' ? () => unsubscribe() : () => {};
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+
+    return true;
+  };
+
+  const init = async () => {
+    try {
+      if (startRemoteSync()) {
+        return;
+      }
+
+      await waitForFirebaseSync();
+      startRemoteSync();
+    } catch (error) {
+      remoteController = null;
+      stopRemoteListener = () => {};
+      throw error;
+    }
+  };
+
+  const update = (updater) => {
+    const previousState = cloneDecorationsState(currentState);
+    const nextState = typeof updater === 'function' ? updater(cloneDecorationsState(currentState)) : currentState;
+
+    setState(nextState);
+
+    if (!remoteController) {
+      return Promise.resolve();
+    }
+
+    return remoteController.setDecorations(nextState).catch((error) => {
+      console.error('Fallo al sincronizar decoraciones con Firebase.', error);
+
+      if (isSyncDisabledError(error)) {
+        stopRemoteListener();
+        stopRemoteListener = () => {};
+        remoteController = null;
+        return;
+      }
+
+      setState(previousState);
+      throw error;
+    });
+  };
+
+  return {
+    subscribe,
+    init,
+    update,
+  };
+};
+
+const decorationsStore = createDecorationsStore();
+
 const saveDecorations = (state) => {
   try {
     localStorage.setItem(DECOR_STORAGE_KEY, JSON.stringify(state));
@@ -8277,7 +8423,7 @@ const initializeDecorationsSection = () => {
     return;
   }
 
-  let decorState = loadDecorations();
+  let decorState = mapRemoteSnapshotToDecorations(loadDecorations());
   let feedbackTimeout = null;
 
   const setFeedback = (element, message) => {
@@ -8324,17 +8470,27 @@ const initializeDecorationsSection = () => {
           return;
         }
 
-        decorState[sectionKey][index] = normalized;
-        saveDecorations(decorState);
-        rerender();
+        decorationsStore
+          .update((state) => {
+            state[sectionKey][index] = normalized;
+            return state;
+          })
+          .catch((error) => {
+            console.warn('No se pudo actualizar el elemento de decoración.', error);
+          });
       };
 
       const deleteItem = (sectionKey, index, itemElement) => {
         itemElement.classList.add('is-removing');
         window.setTimeout(() => {
-          decorState[sectionKey].splice(index, 1);
-          saveDecorations(decorState);
-          rerender();
+          decorationsStore
+            .update((state) => {
+              state[sectionKey].splice(index, 1);
+              return state;
+            })
+            .catch((error) => {
+              console.warn('No se pudo eliminar el elemento de decoración.', error);
+            });
           setFeedback(confirm, 'Elemento eliminado');
         }, 210);
       };
@@ -8372,10 +8528,17 @@ const initializeDecorationsSection = () => {
           return;
         }
 
-        decorState[section.key].push(value);
-        saveDecorations(decorState);
-        input.value = '';
-        rerender();
+        decorationsStore
+          .update((state) => {
+            state[section.key].push(value);
+            return state;
+          })
+          .then(() => {
+            input.value = '';
+          })
+          .catch((error) => {
+            console.warn('No se pudo agregar el elemento de decoración.', error);
+          });
       };
 
       addButton.addEventListener('click', addItem);
@@ -8392,7 +8555,14 @@ const initializeDecorationsSection = () => {
     });
   };
 
-  rerender();
+  decorationsStore.subscribe((nextState) => {
+    decorState = nextState;
+    rerender();
+  });
+
+  decorationsStore.init().catch((error) => {
+    console.warn('No se pudo iniciar la sincronización de decoraciones.', error);
+  });
 };
 
 const initializeAppState = async () => {
